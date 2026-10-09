@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>¿Dónde comemos hoy?</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
-<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <style>
 :root{--bg:#faf7f2;--card:#fff;--tx:#2b2622;--mut:#8a8178;--ac:#c8553d;--ln:#e8e2d9;--gold:#e5a50a}
 @media(prefers-color-scheme:dark){:root{--bg:#1c1917;--card:#292524;--tx:#f5f0ea;--mut:#a39a90;--ln:#3d3835}}
@@ -49,7 +49,7 @@ dialog input,dialog select,dialog textarea,.login input{width:100%}
 html,body{overflow-x:hidden}
 #map{height:65vh;border-radius:12px;border:1px solid var(--ln);z-index:0}
 .hint{font-size:.8rem;color:var(--mut);margin-top:4px}
-.leaflet-popup-content{color:#2b2622}
+.maplibregl-popup-content{color:#2b2622;font:inherit;font-size:.85rem}
 #pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin:10px 0;max-height:60vh;overflow:auto}
 #pgrid img{width:100%;border-radius:8px;display:block}
 #pgrid figure{margin:0}#pgrid figcaption{font-size:.7rem}
@@ -138,7 +138,7 @@ const SUPABASE_KEY = 'sb_publishable_quxHZEvhvS7YdpXdFQkFFQ_2GHIiDny';
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const gEnabled = !GOOGLE_KEY.startsWith('PEGA');
-let sb, me = null, lastId = undefined, R = [], RT = [], P = [], tab = 'v', view = 'list', editId = null, chan = null, linkBias = null, map = null, mapLayer = null, needFit = true;
+let sb, me = null, lastId = undefined, R = [], RT = [], P = [], tab = 'v', view = 'list', editId = null, chan = null, linkBias = null, map = null, mapMarkers = [], needFit = true;
 
 if (SUPABASE_URL.startsWith('PEGA')) { $('#noconf').hidden = false; }
 else {
@@ -371,25 +371,25 @@ $('#gupd').onclick = async () => {
 };
 
 function renderMap(items) {
-  if (typeof L === 'undefined') { $('#map').innerHTML = '<div class="empty">No se pudo cargar el mapa</div>'; return; }
+  if (typeof maplibregl === 'undefined') { $('#map').innerHTML = '<div class="empty">No se pudo cargar el mapa</div>'; return; }
   if (!map) {
-    map = L.map('map').setView([-33.44, -70.63], 12);
     const dark = matchMedia('(prefers-color-scheme: dark)').matches;
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/' + (dark ? 'dark_all' : 'light_all') + '/{z}/{x}/{y}{r}.png', {maxZoom: 19, subdomains: 'abcd',
-      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/attributions">CARTO</a>'}).addTo(map);
-    mapLayer = L.layerGroup().addTo(map);
+    map = new maplibregl.Map({container: 'map', style: 'https://tiles.openfreemap.org/styles/' + (dark ? 'dark' : 'positron'), center: [-70.63, -33.44], zoom: 11});
+    map.addControl(new maplibregl.NavigationControl({showCompass: false}), 'top-right');
   }
-  map.invalidateSize(); mapLayer.clearLayers();
-  const pts = [], withLoc = items.filter(i => i.lat != null && i.lng != null);
+  map.resize();
+  mapMarkers.forEach(m => m.remove()); mapMarkers = [];
+  const withLoc = items.filter(i => i.lat != null && i.lng != null), bounds = new maplibregl.LngLatBounds();
   withLoc.forEach(i => {
-    const a = avg(i.id);
-    L.circleMarker([i.lat, i.lng], {radius: 9, weight: 2, color: '#fff', fillColor: i.status === 'v' ? '#2e9e5b' : '#c8553d', fillOpacity: .95}).addTo(mapLayer)
-      .bindPopup('<b>' + esc(i.name) + '</b><br>' + esc(i.zone || '') +
-        '<br>Google: ' + (i.g ? '⭐ ' + Number(i.g).toFixed(1) : '—') + (i.status === 'v' ? ' · Nosotros: ' + (a ? a.toFixed(1) : '—') : '') +
-        '<br><button data-a="photos" data-id="' + i.id + '" style="margin-top:6px">📷 Fotos</button>');
-    pts.push([i.lat, i.lng]);
+    const a = avg(i.id), el = document.createElement('div');
+    el.style.cssText = 'width:16px;height:16px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.4);cursor:pointer;background:' + (i.status === 'v' ? '#2e9e5b' : '#c8553d');
+    const popup = new maplibregl.Popup({offset: 12}).setHTML('<b>' + esc(i.name) + '</b><br>' + esc(i.zone || '') +
+      '<br>Google: ' + (i.g ? '⭐ ' + Number(i.g).toFixed(1) : '—') + (i.status === 'v' ? ' · Nosotros: ' + (a ? a.toFixed(1) : '—') : '') +
+      '<br><button data-a="photos" data-id="' + i.id + '" style="margin-top:6px">📷 Fotos</button>');
+    mapMarkers.push(new maplibregl.Marker({element: el}).setLngLat([i.lng, i.lat]).setPopup(popup).addTo(map));
+    bounds.extend([i.lng, i.lat]);
   });
-  if (pts.length && needFit) { map.fitBounds(pts, {padding: [30, 30], maxZoom: 15}); needFit = false; }
+  if (withLoc.length && needFit) { map.fitBounds(bounds, {padding: 40, maxZoom: 15, duration: 0}); needFit = false; }
   const miss = items.length - withLoc.length;
   $('#mapnote').innerHTML = '🟢 Visitado · 🟠 Por visitar' + (miss ? ' · ' + miss + ' sin ubicación (pulsa "Actualizar notas de Google")' : '');
 }

@@ -39,6 +39,10 @@ dialog input,dialog select,dialog textarea,.login input{width:100%}
 .login{max-width:340px;margin:60px auto}
 .err{color:#d33;font-size:.85rem;margin-top:8px}
 [hidden]{display:none!important}
+#pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin:10px 0;max-height:60vh;overflow:auto}
+#pgrid img{width:100%;border-radius:8px;display:block}
+#pgrid figure{margin:0}#pgrid figcaption{font-size:.7rem}
+#pdlg{width:min(96vw,760px)}
 </style>
 </head>
 <body>
@@ -76,6 +80,7 @@ dialog input,dialog select,dialog textarea,.login input{width:100%}
 <div id="list"></div>
 <div class="bar" style="margin-top:20px">
   <button id="myname">✏️ Mi nombre</button>
+  <button id="gupd">🔄 Actualizar notas de Google</button>
   <button id="impcsv">⬆ Importar lista de Google (CSV)</button><input type="file" id="csvfile" accept=".csv" hidden>
   <button id="logout">Salir</button>
 </div>
@@ -100,14 +105,25 @@ dialog input,dialog select,dialog textarea,.login input{width:100%}
   </form>
 </dialog>
 
+<dialog id="pdlg">
+  <h3 id="ptitle"></h3>
+  <div id="pgrid"></div>
+  <div class="bar" style="justify-content:space-between;margin:0">
+    <a id="pmaps" href="#" target="_blank" rel="noopener">Ver en Google Maps ↗</a>
+    <button type="button" onclick="document.querySelector('#pdlg').close()">Cerrar</button>
+  </div>
+</dialog>
+
 <script>
 // ====== CONFIGURACIÓN (Supabase > Project Settings > API) ======
 const SUPABASE_URL = 'https://wsuqfcvijysvlugrqwug.supabase.co';
+const GOOGLE_KEY = 'PEGA_AQUI_TU_GOOGLE_KEY'; // Google Cloud > Places API (New)
 const SUPABASE_KEY = 'sb_publishable_quxHZEvhvS7YdpXdFQkFFQ_2GHIiDny';
 // ================================================================
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const gEnabled = !GOOGLE_KEY.startsWith('PEGA');
 let sb, me = null, lastId = undefined, R = [], RT = [], P = [], tab = 'v', editId = null, chan = null;
 
 if (SUPABASE_URL.startsWith('PEGA')) { $('#noconf').hidden = false; }
@@ -191,11 +207,12 @@ function render() {
     <div class="mut">${[i.zone, i.cuisine].filter(Boolean).map(esc).join(' · ')}</div>
     ${i.notes ? `<div class="mut" style="margin-top:6px">${esc(i.notes)}</div>` : ''}
     <div class="row">
-      <div class="who">Google<span class="g">${i.g ? '⭐ ' + Number(i.g).toFixed(1) : '—'}</span></div>
+      <div class="who">Google<span class="g">${i.g ? '⭐ ' + Number(i.g).toFixed(1) + (i.g_count ? ' (' + i.g_count.toLocaleString('es') + ')' : '') : '—'}</span></div>
       ${i.status === 'v' ? people.map(p => `<div class="who">${esc(p.name)}${stars(rs.find(r => r.user_id === p.id)?.stars || 0, i.id, p.id === me.id)}</div>`).join('') +
         `<div class="who">Promedio<span class="g">${a ? a.toFixed(1) : '—'}</span></div>` : ''}
       <div class="acts">
         ${i.status === 'p' ? `<button data-a="visit" data-id="${i.id}">Ya fuimos</button>` : ''}
+        <button data-a="photos" data-id="${i.id}">📷 Fotos</button>
         <button data-a="edit" data-id="${i.id}">Editar</button>
         <button data-a="del" data-id="${i.id}">Borrar</button>
       </div>
@@ -216,6 +233,7 @@ document.addEventListener('click', async e => {
   if (t.dataset.a === 'del' && confirm('¿Borrar?')) { await sb.from('restaurants').delete().eq('id', id); refresh(); }
   if (t.dataset.a === 'visit') { await sb.from('restaurants').update({status: 'v'}).eq('id', id); refresh(); }
   if (t.dataset.a === 'edit') openDlg(id);
+  if (t.dataset.a === 'photos') showPhotos(id);
 });
 
 function openDlg(id) {
@@ -266,6 +284,55 @@ $('#csvfile').onchange=async e=>{
  const {error}=await sb.from('restaurants').insert(items);
  if(error)alert('Error al importar: '+error.message);
  tab='p';await refresh();
+};
+
+const norm=s=>String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9 ]/g,' ').trim();
+const GH={'X-Goog-Api-Key':GOOGLE_KEY};
+async function showPhotos(id){
+ const i=R.find(x=>x.id===id);
+ if(!gEnabled||!i.place_id){if(i.url)window.open(i.url,'_blank','noopener');return}
+ $('#ptitle').textContent=i.name;$('#pgrid').innerHTML='<div class="mut">Cargando…</div>';
+ $('#pmaps').href=i.url||'#';$('#pdlg').showModal();
+ try{
+  const r=await fetch('https://places.googleapis.com/v1/places/'+i.place_id,{headers:{...GH,'X-Goog-FieldMask':'photos,googleMapsUri'}});
+  const j=await r.json();if(!r.ok)throw new Error(j.error?.message||r.status);
+  const ph=(j.photos||[]).slice(0,10);
+  $('#pgrid').innerHTML=ph.length?ph.map(p=>'<figure><img loading="lazy" src="https://places.googleapis.com/v1/'+p.name+'/media?maxWidthPx=800&key='+GOOGLE_KEY+'"><figcaption class="mut">'+esc((p.authorAttributions||[])[0]?.displayName||'')+'</figcaption></figure>').join(''):'<div class="mut">Sin fotos</div>';
+  if(j.googleMapsUri)$('#pmaps').href=j.googleMapsUri;
+ }catch(e){$('#pgrid').innerHTML='<div class="err">'+esc(e.message)+'</div>'}
+}
+$('#gupd').onclick=async()=>{
+ if(!gEnabled)return alert('Falta configurar GOOGLE_KEY en index.html');
+ const old=Date.now()-30*864e5;
+ const todo=R.filter(i=>!i.place_id||!i.g_updated||new Date(i.g_updated)<old);
+ if(!todo.length)return alert('Todo está al día');
+ if(!confirm('¿Buscar la nota de Google de '+todo.length+' lugares?'))return;
+ const btn=$('#gupd');let ok=0,miss=0;
+ for(const [n,i] of todo.entries()){
+  btn.textContent='Actualizando '+(n+1)+'/'+todo.length+'…';
+  try{
+   let pl;
+   if(i.place_id){
+    const r=await fetch('https://places.googleapis.com/v1/places/'+i.place_id,{headers:{...GH,'X-Goog-FieldMask':'id,rating,userRatingCount'}});
+    pl=await r.json();if(!r.ok)throw new Error(pl.error?.message||r.status);
+   }else{
+    const r=await fetch('https://places.googleapis.com/v1/places:searchText',{method:'POST',
+     headers:{...GH,'Content-Type':'application/json','X-Goog-FieldMask':'places.id,places.displayName,places.rating,places.userRatingCount'},
+     body:JSON.stringify({textQuery:i.name+' '+(i.zone||'Santiago, Chile'),languageCode:'es',maxResultCount:1,
+      locationBias:{circle:{center:{latitude:-33.45,longitude:-70.65},radius:30000}}})});
+    const j=await r.json();if(!r.ok)throw new Error(j.error?.message||r.status);
+    pl=(j.places||[])[0];
+    if(!pl||!norm(pl.displayName?.text).includes(norm(i.name).split(' ')[0])){miss++;continue}
+   }
+   const {error}=await sb.from('restaurants').update({place_id:pl.id,g:pl.rating??i.g??null,g_count:pl.userRatingCount??null,g_updated:new Date().toISOString()}).eq('id',i.id);
+   if(error)throw new Error(error.message);
+   ok++;
+  }catch(e){alert('Error: '+e.message);break}
+  await new Promise(r=>setTimeout(r,120));
+ }
+ btn.textContent='🔄 Actualizar notas de Google';
+ alert(ok+' actualizados, '+miss+' sin coincidencia segura');
+ refresh();
 };
 </script>
 </body>

@@ -52,3 +52,9 @@ create policy "ratings_delete" on public.ratings
 
 -- Actualización en vivo entre ambos
 alter publication supabase_realtime add table public.restaurants, public.ratings;
+
+-- Migración 2: datos de Google (ejecutar si ya corriste el script anterior)
+alter table public.restaurants
+  add column if not exists place_id text,
+  add column if not exists g_count int,
+  add column if not exists g_updated timestamptz;

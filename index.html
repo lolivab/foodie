@@ -290,7 +290,12 @@ const norm=s=>String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase(
 const GH={'X-Goog-Api-Key':GOOGLE_KEY};
 async function showPhotos(id){
  const i=R.find(x=>x.id===id);
- if(!gEnabled||!i.place_id){if(i.url)window.open(i.url,'_blank','noopener');return}
+ if(!gEnabled||!i.place_id){
+  const q=encodeURIComponent(i.name+' '+(i.zone||'Santiago, Chile'));
+  $('#ptitle').textContent=i.name;
+  $('#pgrid').innerHTML='<iframe src="https://maps.google.com/maps?q='+q+'&hl=es&z=16&output=embed" style="width:100%;height:60vh;border:0;border-radius:8px;grid-column:1/-1" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>';
+  $('#pmaps').href=i.url||'https://www.google.com/maps/search/?api=1&query='+q;
+  $('#pdlg').showModal();return}
  $('#ptitle').textContent=i.name;$('#pgrid').innerHTML='<div class="mut">Cargando…</div>';
  $('#pmaps').href=i.url||'#';$('#pdlg').showModal();
  try{

@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Nuestros Restaurantes</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{--bg:#faf7f2;--card:#fff;--tx:#2b2622;--mut:#8a8178;--ac:#c8553d;--ln:#e8e2d9;--gold:#e5a50a}
 @media(prefers-color-scheme:dark){:root{--bg:#1c1917;--card:#292524;--tx:#f5f0ea;--mut:#a39a90;--ln:#3d3835}}
@@ -23,7 +24,8 @@ button.pri{background:var(--ac);color:#fff;border-color:var(--ac)}
 .mut{color:var(--mut);font-size:.85rem}
 .row{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;align-items:center}
 .stars{display:inline-flex;gap:1px;font-size:1.3rem;line-height:1}
-.stars span{cursor:pointer;color:var(--ln)}
+.stars span{color:var(--ln)}
+.stars.me span{cursor:pointer}
 .stars span.f{color:var(--gold)}
 .who{display:flex;flex-direction:column;gap:2px;font-size:.8rem;color:var(--mut)}
 .g{font-weight:700;color:var(--tx)}
@@ -31,13 +33,31 @@ button.pri{background:var(--ac);color:#fff;border-color:var(--ac)}
 .acts button{padding:5px 9px;font-size:.8rem}
 dialog{border:1px solid var(--ln);border-radius:12px;background:var(--card);color:var(--tx);width:min(94vw,440px)}
 dialog::backdrop{background:#0006}
-dialog label{display:block;margin:8px 0 3px;font-size:.85rem;color:var(--mut)}
-dialog input,dialog select,dialog textarea{width:100%}
+dialog label,.login label{display:block;margin:8px 0 3px;font-size:.85rem;color:var(--mut)}
+dialog input,dialog select,dialog textarea,.login input{width:100%}
 .empty{text-align:center;color:var(--mut);padding:30px}
+.login{max-width:340px;margin:60px auto}
+.err{color:#d33;font-size:.85rem;margin-top:8px}
+[hidden]{display:none!important}
 </style>
 </head>
 <body>
 <main>
+
+<!-- Pantalla de configuración faltante -->
+<div id="noconf" class="empty" hidden>Falta configurar SUPABASE_URL y SUPABASE_KEY en index.html</div>
+
+<!-- Login -->
+<form id="login" class="login" hidden>
+  <h1>🍽️ Nuestros Restaurantes</h1>
+  <label>Correo</label><input name="email" type="email" required autocomplete="email">
+  <label>Contraseña</label><input name="pw" type="password" required autocomplete="current-password">
+  <div class="bar" style="margin-top:14px"><button class="pri grow">Entrar</button></div>
+  <div class="err" id="lerr"></div>
+</form>
+
+<!-- App -->
+<div id="app" hidden>
 <h1>🍽️ Nuestros Restaurantes</h1>
 <div class="bar tabs">
   <button id="t-v" class="on">✅ Visitados <span id="c-v"></span></button>
@@ -55,12 +75,10 @@ dialog input,dialog select,dialog textarea{width:100%}
 </div>
 <div id="list"></div>
 <div class="bar" style="margin-top:20px">
-  <button id="names">👥 Nombres</button>
-  <button id="exp">⬇ Exportar</button>
-  <button id="imp">⬆ Importar</button>
-  <input type="file" id="file" accept=".json" hidden>
+  <button id="myname">✏️ Mi nombre</button>
+  <button id="logout">Salir</button>
 </div>
-<p class="mut">Los datos se guardan en este navegador. Para compartir con tu pareja, usa Exportar/Importar.</p>
+</div>
 </main>
 
 <dialog id="dlg">
@@ -82,87 +100,142 @@ dialog input,dialog select,dialog textarea{width:100%}
 </dialog>
 
 <script>
-const K='restaurantes-v1';
-let S=load();
-let tab='v',editId=null;
-const $=s=>document.querySelector(s);
-function load(){try{const d=JSON.parse(localStorage.getItem(K));if(d&&d.items)return d}catch(e){}return{names:['Luis','Pareja'],items:[]}}
-function save(){try{localStorage.setItem(K,JSON.stringify(S))}catch(e){}}
-const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const avg=r=>{const a=(r.r||[]).filter(x=>x>0);return a.length?a.reduce((x,y)=>x+y,0)/a.length:0};
-function stars(v,id,who){let h='<span class="stars">';for(let i=1;i<=5;i++)h+=`<span class="${i<=v?'f':''}" data-id="${id}" data-w="${who}" data-v="${i}">★</span>`;return h+'</span>'}
-function render(){
-  $('#c-v').textContent='('+S.items.filter(i=>i.status==='v').length+')';
-  $('#c-p').textContent='('+S.items.filter(i=>i.status==='p').length+')';
-  $('#t-v').classList.toggle('on',tab==='v');$('#t-p').classList.toggle('on',tab==='p');
-  const q=$('#q').value.toLowerCase(),so=$('#sort').value;
-  let l=S.items.filter(i=>i.status===tab&&[i.name,i.zone,i.cuisine,i.notes].join(' ').toLowerCase().includes(q));
-  l.sort((a,b)=>so==='avg'?avg(b)-avg(a):so==='g'?(b.g||0)-(a.g||0):so==='az'?a.name.localeCompare(b.name):b.id-a.id);
-  $('#list').innerHTML=l.length?l.map(i=>`
+// ====== CONFIGURACIÓN (Supabase > Project Settings > API) ======
+const SUPABASE_URL = 'PEGA_AQUI_TU_URL';
+const SUPABASE_KEY = 'PEGA_AQUI_TU_ANON_KEY';
+// ================================================================
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let sb, me = null, R = [], RT = [], P = [], tab = 'v', editId = null, chan = null;
+
+if (SUPABASE_URL.startsWith('PEGA')) { $('#noconf').hidden = false; }
+else {
+  sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  sb.auth.onAuthStateChange((_e, session) => setSession(session));
+  sb.auth.getSession().then(({data}) => setSession(data.session));
+}
+
+async function setSession(session) {
+  const u = session?.user || null;
+  if (u?.id === me?.id) return;
+  me = u;
+  $('#login').hidden = !!me;
+  $('#app').hidden = !me;
+  if (chan) { sb.removeChannel(chan); chan = null; }
+  if (!me) return;
+  await refresh();
+  if (!P.find(p => p.id === me.id)) await askName();
+  chan = sb.channel('cambios')
+    .on('postgres_changes', {event: '*', schema: 'public', table: 'restaurants'}, refresh)
+    .on('postgres_changes', {event: '*', schema: 'public', table: 'ratings'}, refresh)
+    .subscribe();
+}
+
+async function refresh() {
+  const [a, b, c] = await Promise.all([
+    sb.from('restaurants').select('*'),
+    sb.from('ratings').select('*'),
+    sb.from('profiles').select('*')
+  ]);
+  R = a.data || []; RT = b.data || []; P = c.data || [];
+  render();
+}
+
+async function askName() {
+  const cur = P.find(p => p.id === me.id)?.name || '';
+  const n = prompt('¿Cómo te llamas? (se muestra junto a tus estrellas)', cur);
+  if (!n || !n.trim()) return;
+  await sb.from('profiles').upsert({id: me.id, name: n.trim()});
+  await refresh();
+}
+
+$('#login').addEventListener('submit', async e => {
+  e.preventDefault();
+  const f = e.target.elements;
+  const {error} = await sb.auth.signInWithPassword({email: f.email.value.trim(), password: f.pw.value});
+  $('#lerr').textContent = error ? 'Correo o contraseña incorrectos' : '';
+});
+$('#logout').onclick = () => sb.auth.signOut();
+$('#myname').onclick = askName;
+
+const ratingsOf = id => RT.filter(r => r.restaurant_id === id);
+const avg = id => { const a = ratingsOf(id); return a.length ? a.reduce((s, r) => s + r.stars, 0) / a.length : 0; };
+const nameOf = uid => P.find(p => p.id === uid)?.name || 'Sin nombre';
+
+function stars(v, rid, mine) {
+  let h = `<span class="stars ${mine ? 'me' : ''}">`;
+  for (let i = 1; i <= 5; i++) h += `<span class="${i <= v ? 'f' : ''}" ${mine ? `data-rid="${rid}" data-v="${i}"` : ''}>★</span>`;
+  return h + '</span>';
+}
+
+function render() {
+  if (!me) return;
+  $('#c-v').textContent = '(' + R.filter(i => i.status === 'v').length + ')';
+  $('#c-p').textContent = '(' + R.filter(i => i.status === 'p').length + ')';
+  $('#t-v').classList.toggle('on', tab === 'v'); $('#t-p').classList.toggle('on', tab === 'p');
+  const q = $('#q').value.toLowerCase(), so = $('#sort').value;
+  const l = R.filter(i => i.status === tab && [i.name, i.zone, i.cuisine, i.notes].join(' ').toLowerCase().includes(q));
+  l.sort((a, b) => so === 'avg' ? avg(b.id) - avg(a.id) : so === 'g' ? (b.g || 0) - (a.g || 0) : so === 'az' ? a.name.localeCompare(b.name) : b.created_at.localeCompare(a.created_at));
+  // siempre mostrar a los dos (o los que existan), yo primero
+  const people = [...P].sort((a, b) => (b.id === me.id) - (a.id === me.id));
+  if (!people.find(p => p.id === me.id)) people.unshift({id: me.id, name: 'Yo'});
+  $('#list').innerHTML = l.length ? l.map(i => {
+    const rs = ratingsOf(i.id), a = avg(i.id);
+    return `
   <div class="card">
-    <h3>${i.url?`<a href="${esc(i.url)}" target="_blank" rel="noopener" style="color:inherit">${esc(i.name)}</a>`:esc(i.name)}</h3>
-    <div class="mut">${[i.zone,i.cuisine].filter(Boolean).map(esc).join(' · ')}</div>
-    ${i.notes?`<div class="mut" style="margin-top:6px">${esc(i.notes)}</div>`:''}
+    <h3>${i.url ? `<a href="${esc(i.url)}" target="_blank" rel="noopener" style="color:inherit">${esc(i.name)}</a>` : esc(i.name)}</h3>
+    <div class="mut">${[i.zone, i.cuisine].filter(Boolean).map(esc).join(' · ')}</div>
+    ${i.notes ? `<div class="mut" style="margin-top:6px">${esc(i.notes)}</div>` : ''}
     <div class="row">
-      <div class="who">Google<span class="g">${i.g?'⭐ '+Number(i.g).toFixed(1):'—'}</span></div>
-      ${i.status==='v'?[0,1].map(w=>`<div class="who">${esc(S.names[w])}${stars(i.r?.[w]||0,i.id,w)}</div>`).join('')+
-      `<div class="who">Promedio<span class="g">${avg(i)?avg(i).toFixed(1):'—'}</span></div>`:''}
+      <div class="who">Google<span class="g">${i.g ? '⭐ ' + Number(i.g).toFixed(1) : '—'}</span></div>
+      ${i.status === 'v' ? people.map(p => `<div class="who">${esc(p.name)}${stars(rs.find(r => r.user_id === p.id)?.stars || 0, i.id, p.id === me.id)}</div>`).join('') +
+        `<div class="who">Promedio<span class="g">${a ? a.toFixed(1) : '—'}</span></div>` : ''}
       <div class="acts">
-        ${i.status==='p'?`<button data-a="visit" data-id="${i.id}">Ya fuimos</button>`:''}
+        ${i.status === 'p' ? `<button data-a="visit" data-id="${i.id}">Ya fuimos</button>` : ''}
         <button data-a="edit" data-id="${i.id}">Editar</button>
         <button data-a="del" data-id="${i.id}">Borrar</button>
       </div>
     </div>
-  </div>`).join(''):'<div class="empty">Nada por aquí todavía.</div>';
+  </div>`;
+  }).join('') : '<div class="empty">Nada por aquí todavía.</div>';
 }
-document.addEventListener('click',e=>{
-  const t=e.target,id=+t.dataset.id;
-  if(t.dataset.w!==undefined){const it=S.items.find(i=>i.id===id);it.r=it.r||[0,0];const w=+t.dataset.w,v=+t.dataset.v;it.r[w]=it.r[w]===v?0:v;save();render();return}
-  if(t.dataset.a==='del'&&confirm('¿Borrar?')){S.items=S.items.filter(i=>i.id!==id);save();render()}
-  if(t.dataset.a==='visit'){S.items.find(i=>i.id===id).status='v';save();render()}
-  if(t.dataset.a==='edit')openDlg(id);
+
+document.addEventListener('click', async e => {
+  const t = e.target, id = t.dataset.id;
+  if (t.dataset.rid) {
+    const rid = t.dataset.rid, v = +t.dataset.v;
+    const cur = RT.find(r => r.restaurant_id === rid && r.user_id === me.id)?.stars;
+    if (cur === v) await sb.from('ratings').delete().eq('restaurant_id', rid).eq('user_id', me.id);
+    else await sb.from('ratings').upsert({restaurant_id: rid, user_id: me.id, stars: v});
+    return refresh();
+  }
+  if (t.dataset.a === 'del' && confirm('¿Borrar?')) { await sb.from('restaurants').delete().eq('id', id); refresh(); }
+  if (t.dataset.a === 'visit') { await sb.from('restaurants').update({status: 'v'}).eq('id', id); refresh(); }
+  if (t.dataset.a === 'edit') openDlg(id);
 });
-function openDlg(id){
-  editId=id||null;const f=$('#f');f.reset();
-  $('#dt').textContent=id?'Editar restaurante':'Agregar restaurante';
-  const it=id?S.items.find(i=>i.id===id):{status:tab};
-  for(const k of['name','zone','cuisine','url','g','status','notes'])f.elements[k].value=it[k]??'';
+
+function openDlg(id) {
+  editId = id || null; const f = $('#f'); f.reset();
+  $('#dt').textContent = id ? 'Editar restaurante' : 'Agregar restaurante';
+  const it = id ? R.find(i => i.id === id) : {status: tab};
+  for (const k of ['name', 'zone', 'cuisine', 'url', 'g', 'status', 'notes']) f.elements[k].value = it[k] ?? '';
   $('#dlg').showModal();
 }
-$('#add').onclick=()=>openDlg();
-$('#cancel').onclick=()=>$('#dlg').close();
-$('#f').addEventListener('submit',()=>{
-  const f=$('#f').elements,d={};
-  for(const k of['name','zone','cuisine','url','notes','status'])d[k]=f[k].value.trim();
-  d.g=f.g.value?Math.min(5,Math.max(0,+f.g.value)):null;
-  if(!d.name)return;
-  if(editId)Object.assign(S.items.find(i=>i.id===editId),d);
-  else S.items.push({id:Date.now(),r:[0,0],...d});
-  save();render();
+$('#add').onclick = () => openDlg();
+$('#cancel').onclick = () => $('#dlg').close();
+$('#f').addEventListener('submit', async () => {
+  const f = $('#f').elements, d = {};
+  for (const k of ['name', 'zone', 'cuisine', 'url', 'notes', 'status']) d[k] = f[k].value.trim() || (k === 'status' ? 'p' : null);
+  d.g = f.g.value ? Math.min(5, Math.max(0, +f.g.value)) : null;
+  if (!d.name) return;
+  if (editId) await sb.from('restaurants').update(d).eq('id', editId);
+  else await sb.from('restaurants').insert(d);
+  refresh();
 });
-$('#t-v').onclick=()=>{tab='v';render()};
-$('#t-p').onclick=()=>{tab='p';render()};
-$('#q').oninput=render;$('#sort').onchange=render;
-$('#names').onclick=()=>{
-  const a=prompt('Tu nombre:',S.names[0]);if(a===null)return;
-  const b=prompt('Nombre de tu pareja:',S.names[1]);if(b===null)return;
-  S.names=[a.trim()||S.names[0],b.trim()||S.names[1]];save();render();
-};
-$('#exp').onclick=()=>{
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(new Blob([JSON.stringify(S,null,2)],{type:'application/json'}));
-  a.download='restaurantes.json';a.click();
-};
-$('#imp').onclick=()=>$('#file').click();
-$('#file').onchange=e=>{
-  const fl=e.target.files[0];if(!fl)return;
-  fl.text().then(t=>{
-    try{const d=JSON.parse(t);if(!Array.isArray(d.items))throw 0;
-      if(confirm('Esto reemplaza los datos actuales. ¿Continuar?')){S={names:d.names||S.names,items:d.items};save();render()}
-    }catch(x){alert('Archivo inválido')}
-  });e.target.value='';
-};
-render();
+$('#t-v').onclick = () => { tab = 'v'; render(); };
+$('#t-p').onclick = () => { tab = 'p'; render(); };
+$('#q').oninput = render; $('#sort').onchange = render;
 </script>
 </body>
 </html>

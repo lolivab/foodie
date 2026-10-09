@@ -58,3 +58,8 @@ alter table public.restaurants
   add column if not exists place_id text,
   add column if not exists g_count int,
   add column if not exists g_updated timestamptz;
+
+-- Migración 3: ubicación para el mapa
+alter table public.restaurants
+  add column if not exists lat double precision,
+  add column if not exists lng double precision;

@@ -51,6 +51,17 @@ html,body{overflow-x:hidden}
 .cbody{flex:1;min-width:0}
 .thumb{flex:0 0 92px;width:92px;height:92px;border-radius:12px;object-fit:cover;cursor:pointer;background:linear-gradient(135deg,#d9692f,#e8b36a);color:#fff;display:flex;align-items:center;justify-content:center;font:600 2rem Georgia,serif}
 @media(max-width:480px){.thumb{flex-basis:72px;width:72px;height:72px}}
+.card{padding:9px 11px;margin-bottom:7px;gap:10px;border-radius:10px;align-items:center}
+.card h3{font-size:.98rem;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card .mut{font-size:.78rem}
+.note{margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card .row{margin-top:5px;gap:4px 12px}
+.card .stars{font-size:1.05rem}
+.card .who{font-size:.7rem;flex-direction:row;align-items:center;gap:5px}
+.card .acts{gap:4px}
+.card .acts button{padding:3px 7px;font-size:.75rem}
+.thumb{flex:0 0 64px;width:64px;height:64px;border-radius:10px;font-size:1.5rem}
+@media(max-width:480px){.thumb{flex-basis:54px;width:54px;height:54px}.card .acts{margin-left:0;width:100%}}
 #map{height:65vh;border-radius:12px;border:1px solid var(--ln);z-index:0}
 .hint{font-size:.8rem;color:var(--mut);margin-top:4px}
 .maplibregl-popup-content{color:#2b2622;font:inherit;font-size:.85rem}
@@ -234,7 +245,7 @@ function render() {
     ${thumb(i)}<div class="cbody">
     <h3>${i.url ? `<a href="${esc(i.url)}" target="_blank" rel="noopener" style="color:inherit">${esc(i.name)}</a>` : esc(i.name)}</h3>
     <div class="mut">${[i.zone, i.cuisine].filter(Boolean).map(esc).join(' · ')}</div>
-    ${i.notes ? `<div class="mut" style="margin-top:6px">${esc(i.notes)}</div>` : ''}
+    ${i.notes ? `<div class="mut note">${esc(i.notes)}</div>` : ''}
     <div class="row">
       <div class="who">Google<span class="g">${i.g ? '⭐ ' + Number(i.g).toFixed(1) + (i.g_count ? ' (' + i.g_count.toLocaleString('es') + ')' : '') : '—'}</span></div>
       ${i.status === 'v' ? people.map(p => `<div class="who">${esc(p.name)}${stars(rs.find(r => r.user_id === p.id)?.stars || 0, i.id, p.id === me.id)}</div>`).join('') +

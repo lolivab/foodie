@@ -76,6 +76,7 @@ dialog input,dialog select,dialog textarea,.login input{width:100%}
 <div id="list"></div>
 <div class="bar" style="margin-top:20px">
   <button id="myname">✏️ Mi nombre</button>
+  <button id="impcsv">⬆ Importar lista de Google (CSV)</button><input type="file" id="csvfile" accept=".csv" hidden>
   <button id="logout">Salir</button>
 </div>
 </div>
@@ -238,6 +239,34 @@ $('#f').addEventListener('submit', async () => {
 $('#t-v').onclick = () => { tab = 'v'; render(); };
 $('#t-p').onclick = () => { tab = 'p'; render(); };
 $('#q').oninput = render; $('#sort').onchange = render;
+
+function parseCSV(t){const rows=[];let r=[],c='',q=false;t=t.replace(/^﻿/,'');
+for(let i=0;i<t.length;i++){const ch=t[i];
+ if(q){if(ch==='"'){if(t[i+1]==='"'){c+='"';i++}else q=false}else c+=ch}
+ else if(ch==='"')q=true;
+ else if(ch===','){r.push(c);c=''}
+ else if(ch==='\n'||ch==='\r'){if(ch==='\r'&&t[i+1]==='\n')i++;r.push(c);c='';rows.push(r);r=[]}
+ else c+=ch}
+if(c||r.length){r.push(c);rows.push(r)}return rows}
+$('#impcsv').onclick=()=>$('#csvfile').click();
+$('#csvfile').onchange=async e=>{
+ const fl=e.target.files[0];e.target.value='';if(!fl)return;
+ const rows=parseCSV(await fl.text());
+ const h=rows[0].map(x=>x.trim().toLowerCase());
+ const ix=(...n)=>h.findIndex(x=>n.includes(x));
+ const iT=ix('título','titulo','title'),iN=ix('nota','note'),iU=ix('url'),iC=ix('comentario','comment');
+ if(iT<0||iU<0){alert('No reconozco el formato del CSV');return}
+ const have=new Set(R.map(r=>r.url).filter(Boolean));
+ const items=[];
+ for(const r of rows.slice(1)){const name=(r[iT]||'').trim(),url=(r[iU]||'').trim();
+  if(!name||(url&&have.has(url)))continue;if(url)have.add(url);
+  items.push({name,url:url||null,notes:[r[iN],iC>=0?r[iC]:''].map(x=>(x||'').trim()).filter(Boolean).join(' · ')||null,status:'p'})}
+ if(!items.length){alert('No hay lugares nuevos para importar');return}
+ if(!confirm('¿Importar '+items.length+' lugares como "Por visitar"?'))return;
+ const {error}=await sb.from('restaurants').insert(items);
+ if(error)alert('Error al importar: '+error.message);
+ tab='p';await refresh();
+};
 </script>
 </body>
 </html>

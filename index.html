@@ -107,7 +107,7 @@ const SUPABASE_KEY = 'sb_publishable_quxHZEvhvS7YdpXdFQkFFQ_2GHIiDny';
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let sb, me = null, R = [], RT = [], P = [], tab = 'v', editId = null, chan = null;
+let sb, me = null, lastId = undefined, R = [], RT = [], P = [], tab = 'v', editId = null, chan = null;
 
 if (SUPABASE_URL.startsWith('PEGA')) { $('#noconf').hidden = false; }
 else {
@@ -118,7 +118,9 @@ else {
 
 async function setSession(session) {
   const u = session?.user || null;
-  if (u?.id === me?.id) return;
+  const id = u?.id || null;
+  if (id === lastId) return;
+  lastId = id;
   me = u;
   $('#login').hidden = !!me;
   $('#app').hidden = !me;

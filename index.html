@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Nuestros Restaurantes</title>
+<style>
+:root{--bg:#faf7f2;--card:#fff;--tx:#2b2622;--mut:#8a8178;--ac:#c8553d;--ln:#e8e2d9;--gold:#e5a50a}
+@media(prefers-color-scheme:dark){:root{--bg:#1c1917;--card:#292524;--tx:#f5f0ea;--mut:#a39a90;--ln:#3d3835}}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:var(--bg);color:var(--tx)}
+main{max-width:820px;margin:0 auto;padding:16px}
+h1{margin:8px 0 14px;font-size:1.6rem}
+.bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+input,select,textarea,button{font:inherit;color:inherit;background:var(--card);border:1px solid var(--ln);border-radius:8px;padding:8px 10px}
+button{cursor:pointer}
+button.pri{background:var(--ac);color:#fff;border-color:var(--ac)}
+.tabs button{flex:1;font-weight:600}
+.tabs button.on{background:var(--ac);color:#fff;border-color:var(--ac)}
+.grow{flex:1;min-width:140px}
+.card{background:var(--card);border:1px solid var(--ln);border-radius:12px;padding:14px;margin-bottom:10px}
+.card h3{margin:0 0 2px;font-size:1.1rem}
+.mut{color:var(--mut);font-size:.85rem}
+.row{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;align-items:center}
+.stars{display:inline-flex;gap:1px;font-size:1.3rem;line-height:1}
+.stars span{cursor:pointer;color:var(--ln)}
+.stars span.f{color:var(--gold)}
+.who{display:flex;flex-direction:column;gap:2px;font-size:.8rem;color:var(--mut)}
+.g{font-weight:700;color:var(--tx)}
+.acts{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
+.acts button{padding:5px 9px;font-size:.8rem}
+dialog{border:1px solid var(--ln);border-radius:12px;background:var(--card);color:var(--tx);width:min(94vw,440px)}
+dialog::backdrop{background:#0006}
+dialog label{display:block;margin:8px 0 3px;font-size:.85rem;color:var(--mut)}
+dialog input,dialog select,dialog textarea{width:100%}
+.empty{text-align:center;color:var(--mut);padding:30px}
+</style>
+</head>
+<body>
+<main>
+<h1>🍽️ Nuestros Restaurantes</h1>
+<div class="bar tabs">
+  <button id="t-v" class="on">✅ Visitados <span id="c-v"></span></button>
+  <button id="t-p">📌 Por visitar <span id="c-p"></span></button>
+</div>
+<div class="bar">
+  <input id="q" class="grow" placeholder="Buscar nombre, zona, cocina…">
+  <select id="sort">
+    <option value="avg">Mejor nuestra nota</option>
+    <option value="g">Mejor nota Google</option>
+    <option value="new">Más recientes</option>
+    <option value="az">A–Z</option>
+  </select>
+  <button class="pri" id="add">+ Agregar</button>
+</div>
+<div id="list"></div>
+<div class="bar" style="margin-top:20px">
+  <button id="names">👥 Nombres</button>
+  <button id="exp">⬇ Exportar</button>
+  <button id="imp">⬆ Importar</button>
+  <input type="file" id="file" accept=".json" hidden>
+</div>
+<p class="mut">Los datos se guardan en este navegador. Para compartir con tu pareja, usa Exportar/Importar.</p>
+</main>
+
+<dialog id="dlg">
+  <form method="dialog" id="f">
+    <h3 id="dt">Agregar restaurante</h3>
+    <label>Nombre *</label><input name="name" required>
+    <label>Zona / ciudad</label><input name="zone">
+    <label>Tipo de cocina</label><input name="cuisine">
+    <label>Link de Google Maps</label><input name="url" type="url" placeholder="https://maps.app.goo.gl/…">
+    <label>Nota en Google Maps (0–5)</label><input name="g" type="number" min="0" max="5" step="0.1">
+    <label>Estado</label>
+    <select name="status"><option value="p">Por visitar</option><option value="v">Visitado</option></select>
+    <label>Notas</label><textarea name="notes" rows="2"></textarea>
+    <div class="bar" style="margin-top:12px;justify-content:flex-end">
+      <button type="button" id="cancel">Cancelar</button>
+      <button class="pri" value="ok">Guardar</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+const K='restaurantes-v1';
+let S=load();
+let tab='v',editId=null;
+const $=s=>document.querySelector(s);
+function load(){try{const d=JSON.parse(localStorage.getItem(K));if(d&&d.items)return d}catch(e){}return{names:['Luis','Pareja'],items:[]}}
+function save(){try{localStorage.setItem(K,JSON.stringify(S))}catch(e){}}
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const avg=r=>{const a=(r.r||[]).filter(x=>x>0);return a.length?a.reduce((x,y)=>x+y,0)/a.length:0};
+function stars(v,id,who){let h='<span class="stars">';for(let i=1;i<=5;i++)h+=`<span class="${i<=v?'f':''}" data-id="${id}" data-w="${who}" data-v="${i}">★</span>`;return h+'</span>'}
+function render(){
+  $('#c-v').textContent='('+S.items.filter(i=>i.status==='v').length+')';
+  $('#c-p').textContent='('+S.items.filter(i=>i.status==='p').length+')';
+  $('#t-v').classList.toggle('on',tab==='v');$('#t-p').classList.toggle('on',tab==='p');
+  const q=$('#q').value.toLowerCase(),so=$('#sort').value;
+  let l=S.items.filter(i=>i.status===tab&&[i.name,i.zone,i.cuisine,i.notes].join(' ').toLowerCase().includes(q));
+  l.sort((a,b)=>so==='avg'?avg(b)-avg(a):so==='g'?(b.g||0)-(a.g||0):so==='az'?a.name.localeCompare(b.name):b.id-a.id);
+  $('#list').innerHTML=l.length?l.map(i=>`
+  <div class="card">
+    <h3>${i.url?`<a href="${esc(i.url)}" target="_blank" rel="noopener" style="color:inherit">${esc(i.name)}</a>`:esc(i.name)}</h3>
+    <div class="mut">${[i.zone,i.cuisine].filter(Boolean).map(esc).join(' · ')}</div>
+    ${i.notes?`<div class="mut" style="margin-top:6px">${esc(i.notes)}</div>`:''}
+    <div class="row">
+      <div class="who">Google<span class="g">${i.g?'⭐ '+Number(i.g).toFixed(1):'—'}</span></div>
+      ${i.status==='v'?[0,1].map(w=>`<div class="who">${esc(S.names[w])}${stars(i.r?.[w]||0,i.id,w)}</div>`).join('')+
+      `<div class="who">Promedio<span class="g">${avg(i)?avg(i).toFixed(1):'—'}</span></div>`:''}
+      <div class="acts">
+        ${i.status==='p'?`<button data-a="visit" data-id="${i.id}">Ya fuimos</button>`:''}
+        <button data-a="edit" data-id="${i.id}">Editar</button>
+        <button data-a="del" data-id="${i.id}">Borrar</button>
+      </div>
+    </div>
+  </div>`).join(''):'<div class="empty">Nada por aquí todavía.</div>';
+}
+document.addEventListener('click',e=>{
+  const t=e.target,id=+t.dataset.id;
+  if(t.dataset.w!==undefined){const it=S.items.find(i=>i.id===id);it.r=it.r||[0,0];const w=+t.dataset.w,v=+t.dataset.v;it.r[w]=it.r[w]===v?0:v;save();render();return}
+  if(t.dataset.a==='del'&&confirm('¿Borrar?')){S.items=S.items.filter(i=>i.id!==id);save();render()}
+  if(t.dataset.a==='visit'){S.items.find(i=>i.id===id).status='v';save();render()}
+  if(t.dataset.a==='edit')openDlg(id);
+});
+function openDlg(id){
+  editId=id||null;const f=$('#f');f.reset();
+  $('#dt').textContent=id?'Editar restaurante':'Agregar restaurante';
+  const it=id?S.items.find(i=>i.id===id):{status:tab};
+  for(const k of['name','zone','cuisine','url','g','status','notes'])f.elements[k].value=it[k]??'';
+  $('#dlg').showModal();
+}
+$('#add').onclick=()=>openDlg();
+$('#cancel').onclick=()=>$('#dlg').close();
+$('#f').addEventListener('submit',()=>{
+  const f=$('#f').elements,d={};
+  for(const k of['name','zone','cuisine','url','notes','status'])d[k]=f[k].value.trim();
+  d.g=f.g.value?Math.min(5,Math.max(0,+f.g.value)):null;
+  if(!d.name)return;
+  if(editId)Object.assign(S.items.find(i=>i.id===editId),d);
+  else S.items.push({id:Date.now(),r:[0,0],...d});
+  save();render();
+});
+$('#t-v').onclick=()=>{tab='v';render()};
+$('#t-p').onclick=()=>{tab='p';render()};
+$('#q').oninput=render;$('#sort').onchange=render;
+$('#names').onclick=()=>{
+  const a=prompt('Tu nombre:',S.names[0]);if(a===null)return;
+  const b=prompt('Nombre de tu pareja:',S.names[1]);if(b===null)return;
+  S.names=[a.trim()||S.names[0],b.trim()||S.names[1]];save();render();
+};
+$('#exp').onclick=()=>{
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(S,null,2)],{type:'application/json'}));
+  a.download='restaurantes.json';a.click();
+};
+$('#imp').onclick=()=>$('#file').click();
+$('#file').onchange=e=>{
+  const fl=e.target.files[0];if(!fl)return;
+  fl.text().then(t=>{
+    try{const d=JSON.parse(t);if(!Array.isArray(d.items))throw 0;
+      if(confirm('Esto reemplaza los datos actuales. ¿Continuar?')){S={names:d.names||S.names,items:d.items};save();render()}
+    }catch(x){alert('Archivo inválido')}
+  });e.target.value='';
+};
+render();
+</script>
+</body>
+</html>

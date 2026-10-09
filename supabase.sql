@@ -63,3 +63,6 @@ alter table public.restaurants
 alter table public.restaurants
   add column if not exists lat double precision,
   add column if not exists lng double precision;
+
+-- Migración 4: foto de portada
+alter table public.restaurants add column if not exists photo_name text;

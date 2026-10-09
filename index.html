@@ -47,6 +47,10 @@ dialog input,dialog select,dialog textarea,.login input{width:100%}
 .hero h1{margin:0;font-family:Georgia,'Iowan Old Style','Times New Roman',serif;font-weight:600;font-size:clamp(2rem,6vw,2.8rem);line-height:1.05;letter-spacing:-.01em}
 .hero p{margin:10px 0 0;font-size:.95rem;opacity:.92}
 html,body{overflow-x:hidden}
+.card{display:flex;gap:12px;align-items:flex-start}
+.cbody{flex:1;min-width:0}
+.thumb{flex:0 0 92px;width:92px;height:92px;border-radius:12px;object-fit:cover;cursor:pointer;background:linear-gradient(135deg,#d9692f,#e8b36a);color:#fff;display:flex;align-items:center;justify-content:center;font:600 2rem Georgia,serif}
+@media(max-width:480px){.thumb{flex-basis:72px;width:72px;height:72px}}
 #map{height:65vh;border-radius:12px;border:1px solid var(--ln);z-index:0}
 .hint{font-size:.8rem;color:var(--mut);margin-top:4px}
 .maplibregl-popup-content{color:#2b2622;font:inherit;font-size:.85rem}
@@ -202,6 +206,12 @@ function stars(v, rid, mine) {
   return h + '</span>';
 }
 
+function thumb(i) {
+  const ph = '<div class="thumb" data-a="photos" data-id="' + i.id + '">' + esc((i.name || '?').trim()[0].toUpperCase()) + '</div>';
+  if (!gEnabled || !i.photo_name) return ph;
+  return '<img class="thumb" data-a="photos" data-id="' + i.id + '" loading="lazy" alt="" src="https://places.googleapis.com/v1/' + i.photo_name + '/media?maxHeightPx=240&maxWidthPx=240&key=' + GOOGLE_KEY + '" onerror="this.outerHTML=this.dataset.fb" data-fb=\'' + ph.replace(/'/g, '&#39;') + '\'>';
+}
+
 function render() {
   if (!me) return;
   $('#c-v').textContent = '(' + R.filter(i => i.status === 'v').length + ')';
@@ -221,6 +231,7 @@ function render() {
     const rs = ratingsOf(i.id), a = avg(i.id);
     return `
   <div class="card">
+    ${thumb(i)}<div class="cbody">
     <h3>${i.url ? `<a href="${esc(i.url)}" target="_blank" rel="noopener" style="color:inherit">${esc(i.name)}</a>` : esc(i.name)}</h3>
     <div class="mut">${[i.zone, i.cuisine].filter(Boolean).map(esc).join(' · ')}</div>
     ${i.notes ? `<div class="mut" style="margin-top:6px">${esc(i.notes)}</div>` : ''}
@@ -235,7 +246,7 @@ function render() {
         <button data-a="del" data-id="${i.id}">Borrar</button>
       </div>
     </div>
-  </div>`;
+  </div></div>`;
   }).join('') : '<div class="empty">Nada por aquí todavía.</div>';
 }
 
@@ -289,7 +300,7 @@ const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLow
 const GH = {'X-Goog-Api-Key': GOOGLE_KEY};
 async function lookupPlace(name, bias) {
   const r = await fetch('https://places.googleapis.com/v1/places:searchText', {method: 'POST',
-    headers: {...GH, 'Content-Type': 'application/json', 'X-Goog-FieldMask': 'places.id,places.displayName,places.rating,places.userRatingCount,places.location,places.formattedAddress'},
+    headers: {...GH, 'Content-Type': 'application/json', 'X-Goog-FieldMask': 'places.id,places.displayName,places.rating,places.userRatingCount,places.location,places.formattedAddress,places.photos'},
     body: JSON.stringify({textQuery: name, languageCode: 'es', maxResultCount: 1,
       locationBias: {circle: {center: {latitude: bias?.lat ?? -33.45, longitude: bias?.lng ?? -70.65}, radius: bias ? 5000 : 30000}}})});
   const j = await r.json(); if (!r.ok) throw new Error(j.error?.message || r.status);
@@ -310,7 +321,7 @@ $('#f').addEventListener('submit', async () => {
       if (pl) {
         d.place_id = pl.id; d.g_count = pl.userRatingCount ?? null; d.g_updated = new Date().toISOString();
         if (d.g == null) d.g = pl.rating ?? null;
-        d.lat = pl.location?.latitude ?? null; d.lng = pl.location?.longitude ?? null;
+        d.photo_name = pl.photos?.[0]?.name ?? null; d.lat = pl.location?.latitude ?? null; d.lng = pl.location?.longitude ?? null;
         if (!d.zone) d.zone = (pl.formattedAddress || '').split(',')[1]?.replace(/^\s*\d+\s*/, '').trim() || null;
         if (!d.url) d.url = 'https://www.google.com/maps/place/?q=place_id:' + pl.id;
       }
@@ -344,7 +355,7 @@ async function showPhotos(id) {
 $('#gupd').onclick = async () => {
   if (!gEnabled) return alert('Falta configurar GOOGLE_KEY en index.html');
   const old = Date.now() - 30 * 864e5;
-  const todo = R.filter(i => !i.place_id || !i.g_updated || i.lat == null || new Date(i.g_updated) < old);
+  const todo = R.filter(i => !i.place_id || !i.g_updated || i.lat == null || !i.photo_name || new Date(i.g_updated) < old);
   if (!todo.length) return alert('Todo está al día');
   if (!confirm('¿Buscar nota y ubicación de Google de ' + todo.length + ' lugares?')) return;
   const btn = $('#gupd'); let ok = 0, miss = 0;
@@ -353,14 +364,14 @@ $('#gupd').onclick = async () => {
     try {
       let pl;
       if (i.place_id) {
-        const r = await fetch('https://places.googleapis.com/v1/places/' + i.place_id, {headers: {...GH, 'X-Goog-FieldMask': 'id,rating,userRatingCount,location'}});
+        const r = await fetch('https://places.googleapis.com/v1/places/' + i.place_id, {headers: {...GH, 'X-Goog-FieldMask': 'id,rating,userRatingCount,location,photos'}});
         pl = await r.json(); if (!r.ok) throw new Error(pl.error?.message || r.status);
       } else {
         pl = await lookupPlace(i.name + ' ' + (i.zone || ''), null);
         if (!pl) { miss++; continue; }
       }
       const {error} = await sb.from('restaurants').update({place_id: pl.id, g: pl.rating ?? i.g ?? null, g_count: pl.userRatingCount ?? null,
-        lat: pl.location?.latitude ?? null, lng: pl.location?.longitude ?? null, g_updated: new Date().toISOString()}).eq('id', i.id);
+        photo_name: pl.photos?.[0]?.name ?? i.photo_name ?? null, lat: pl.location?.latitude ?? null, lng: pl.location?.longitude ?? null, g_updated: new Date().toISOString()}).eq('id', i.id);
       if (error) throw new Error(error.message);
       ok++;
     } catch (e) { alert('Error: ' + e.message); break; }

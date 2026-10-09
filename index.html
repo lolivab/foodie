@@ -81,7 +81,7 @@ dialog input,dialog select,dialog textarea,.login input{width:100%}
 <div class="bar" style="margin-top:20px">
   <button id="myname">✏️ Mi nombre</button>
   <button id="gupd">🔄 Actualizar notas de Google</button>
-  <button id="impcsv">⬆ Importar lista de Google (CSV)</button><input type="file" id="csvfile" accept=".csv" hidden>
+  
   <button id="logout">Salir</button>
 </div>
 </div>
@@ -258,87 +258,6 @@ $('#t-v').onclick = () => { tab = 'v'; render(); };
 $('#t-p').onclick = () => { tab = 'p'; render(); };
 $('#q').oninput = render; $('#sort').onchange = render;
 
-function parseCSV(t){const rows=[];let r=[],c='',q=false;t=t.replace(/^﻿/,'');
-for(let i=0;i<t.length;i++){const ch=t[i];
- if(q){if(ch==='"'){if(t[i+1]==='"'){c+='"';i++}else q=false}else c+=ch}
- else if(ch==='"')q=true;
- else if(ch===','){r.push(c);c=''}
- else if(ch==='\n'||ch==='\r'){if(ch==='\r'&&t[i+1]==='\n')i++;r.push(c);c='';rows.push(r);r=[]}
- else c+=ch}
-if(c||r.length){r.push(c);rows.push(r)}return rows}
-$('#impcsv').onclick=()=>$('#csvfile').click();
-$('#csvfile').onchange=async e=>{
- const fl=e.target.files[0];e.target.value='';if(!fl)return;
- const rows=parseCSV(await fl.text());
- const h=rows[0].map(x=>x.trim().toLowerCase());
- const ix=(...n)=>h.findIndex(x=>n.includes(x));
- const iT=ix('título','titulo','title'),iN=ix('nota','note'),iU=ix('url'),iC=ix('comentario','comment');
- if(iT<0||iU<0){alert('No reconozco el formato del CSV');return}
- const have=new Set(R.map(r=>r.url).filter(Boolean));
- const items=[];
- for(const r of rows.slice(1)){const name=(r[iT]||'').trim(),url=(r[iU]||'').trim();
-  if(!name||(url&&have.has(url)))continue;if(url)have.add(url);
-  items.push({name,url:url||null,notes:[r[iN],iC>=0?r[iC]:''].map(x=>(x||'').trim()).filter(Boolean).join(' · ')||null,status:'p'})}
- if(!items.length){alert('No hay lugares nuevos para importar');return}
- if(!confirm('¿Importar '+items.length+' lugares como "Por visitar"?'))return;
- const {error}=await sb.from('restaurants').insert(items);
- if(error)alert('Error al importar: '+error.message);
- tab='p';await refresh();
-};
-
-const norm=s=>String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9 ]/g,' ').trim();
-const GH={'X-Goog-Api-Key':GOOGLE_KEY};
-async function showPhotos(id){
- const i=R.find(x=>x.id===id);
- if(!gEnabled||!i.place_id){
-  const q=encodeURIComponent(i.name+' '+(i.zone||'Santiago, Chile'));
-  $('#ptitle').textContent=i.name;
-  $('#pgrid').innerHTML='<iframe src="https://maps.google.com/maps?q='+q+'&hl=es&z=16&output=embed" style="width:100%;height:60vh;border:0;border-radius:8px;grid-column:1/-1" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>';
-  $('#pmaps').href=i.url||'https://www.google.com/maps/search/?api=1&query='+q;
-  $('#pdlg').showModal();return}
- $('#ptitle').textContent=i.name;$('#pgrid').innerHTML='<div class="mut">Cargando…</div>';
- $('#pmaps').href=i.url||'#';$('#pdlg').showModal();
- try{
-  const r=await fetch('https://places.googleapis.com/v1/places/'+i.place_id,{headers:{...GH,'X-Goog-FieldMask':'photos,googleMapsUri'}});
-  const j=await r.json();if(!r.ok)throw new Error(j.error?.message||r.status);
-  const ph=(j.photos||[]).slice(0,10);
-  $('#pgrid').innerHTML=ph.length?ph.map(p=>'<figure><img loading="lazy" src="https://places.googleapis.com/v1/'+p.name+'/media?maxWidthPx=800&key='+GOOGLE_KEY+'"><figcaption class="mut">'+esc((p.authorAttributions||[])[0]?.displayName||'')+'</figcaption></figure>').join(''):'<div class="mut">Sin fotos</div>';
-  if(j.googleMapsUri)$('#pmaps').href=j.googleMapsUri;
- }catch(e){$('#pgrid').innerHTML='<div class="err">'+esc(e.message)+'</div>'}
-}
-$('#gupd').onclick=async()=>{
- if(!gEnabled)return alert('Falta configurar GOOGLE_KEY en index.html');
- const old=Date.now()-30*864e5;
- const todo=R.filter(i=>!i.place_id||!i.g_updated||new Date(i.g_updated)<old);
- if(!todo.length)return alert('Todo está al día');
- if(!confirm('¿Buscar la nota de Google de '+todo.length+' lugares?'))return;
- const btn=$('#gupd');let ok=0,miss=0;
- for(const [n,i] of todo.entries()){
-  btn.textContent='Actualizando '+(n+1)+'/'+todo.length+'…';
-  try{
-   let pl;
-   if(i.place_id){
-    const r=await fetch('https://places.googleapis.com/v1/places/'+i.place_id,{headers:{...GH,'X-Goog-FieldMask':'id,rating,userRatingCount'}});
-    pl=await r.json();if(!r.ok)throw new Error(pl.error?.message||r.status);
-   }else{
-    const r=await fetch('https://places.googleapis.com/v1/places:searchText',{method:'POST',
-     headers:{...GH,'Content-Type':'application/json','X-Goog-FieldMask':'places.id,places.displayName,places.rating,places.userRatingCount'},
-     body:JSON.stringify({textQuery:i.name+' '+(i.zone||'Santiago, Chile'),languageCode:'es',maxResultCount:1,
-      locationBias:{circle:{center:{latitude:-33.45,longitude:-70.65},radius:30000}}})});
-    const j=await r.json();if(!r.ok)throw new Error(j.error?.message||r.status);
-    pl=(j.places||[])[0];
-    if(!pl||!norm(pl.displayName?.text).includes(norm(i.name).split(' ')[0])){miss++;continue}
-   }
-   const {error}=await sb.from('restaurants').update({place_id:pl.id,g:pl.rating??i.g??null,g_count:pl.userRatingCount??null,g_updated:new Date().toISOString()}).eq('id',i.id);
-   if(error)throw new Error(error.message);
-   ok++;
-  }catch(e){alert('Error: '+e.message);break}
-  await new Promise(r=>setTimeout(r,120));
- }
- btn.textContent='🔄 Actualizar notas de Google';
- alert(ok+' actualizados, '+miss+' sin coincidencia segura');
- refresh();
-};
 </script>
 </body>
 </html>

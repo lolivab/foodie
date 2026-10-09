@@ -250,6 +250,7 @@ document.addEventListener('click', async e => {
   }
   if (t.dataset.a === 'del' && confirm('¿Borrar?')) { await sb.from('restaurants').delete().eq('id', id); refresh(); }
   if (t.dataset.a === 'visit') { await sb.from('restaurants').update({status: 'v'}).eq('id', id); refresh(); }
+  if (t.dataset.a === 'unvisit') { await sb.from('restaurants').update({status: 'p'}).eq('id', id); refresh(); }
   if (t.dataset.a === 'edit') openDlg(id);
   if (t.dataset.a === 'photos') showPhotos(id);
 });
@@ -385,7 +386,8 @@ function renderMap(items) {
     el.style.cssText = 'width:16px;height:16px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.4);cursor:pointer;background:' + (i.status === 'v' ? '#2e9e5b' : '#c8553d');
     const popup = new maplibregl.Popup({offset: 12}).setHTML('<b>' + esc(i.name) + '</b><br>' + esc(i.zone || '') +
       '<br>Google: ' + (i.g ? '⭐ ' + Number(i.g).toFixed(1) : '—') + (i.status === 'v' ? ' · Nosotros: ' + (a ? a.toFixed(1) : '—') : '') +
-      '<br><button data-a="photos" data-id="' + i.id + '" style="margin-top:6px">📷 Fotos</button>');
+      '<br><div style="display:flex;gap:6px;margin-top:6px"><button data-a="photos" data-id="' + i.id + '">📷 Fotos</button>' +
+      (i.status === 'p' ? '<button data-a="visit" data-id="' + i.id + '">✅ Ya fuimos</button>' : '<button data-a="unvisit" data-id="' + i.id + '">↩ Por visitar</button>') + '</div>');
     mapMarkers.push(new maplibregl.Marker({element: el}).setLngLat([i.lng, i.lat]).setPopup(popup).addTo(map));
     bounds.extend([i.lng, i.lat]);
   });

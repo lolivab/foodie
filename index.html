@@ -82,6 +82,10 @@ html,body{overflow-x:hidden}
 .card .who .lbl{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--mut);font-size:.68rem;line-height:1.2}
 .card .who .g{line-height:1.3;white-space:nowrap}
 .card .stars{font-size:1rem;line-height:1}
+.btnlink{display:inline-block;border:1px solid var(--ln);border-radius:8px;padding:8px 10px;background:var(--card);color:inherit;text-decoration:none}
+.btnlink.pri{background:var(--ac);color:#fff;border-color:var(--ac)}
+#filters select{flex:1;min-width:105px}
+.card .acts a{border:0;padding:3px 6px;font-size:1rem;text-decoration:none;color:inherit;line-height:1.4}
 #map{height:65vh;border-radius:12px;border:1px solid var(--ln);z-index:0}
 .hint{font-size:.8rem;color:var(--mut);margin-top:4px}
 .maplibregl-popup-content{color:#2b2622;font:inherit;font-size:.85rem}
@@ -126,6 +130,13 @@ html,body{overflow-x:hidden}
   <button id="vmap">🗺️ Mapa</button>
   <button class="pri" id="add">+ Agregar</button>
 </div>
+<div class="bar" id="filters">
+  <select id="f-cui"><option value="">Cocina: todas</option></select>
+  <select id="f-zone"><option value="">Zona: todas</option></select>
+  <select id="f-min"><option value="0">Nota Google: todas</option><option value="4">4,0 o más</option><option value="4.3">4,3 o más</option><option value="4.5">4,5 o más</option><option value="4.7">4,7 o más</option></select>
+  <button id="f-clear" hidden>Limpiar</button>
+  <button class="pri" id="rand">🎲 Sorpréndenos</button>
+</div>
 <div id="list"></div>
 <div id="mapwrap" hidden><div id="map"></div><div class="hint" id="mapnote"></div></div>
 <div class="bar" style="margin-top:20px">
@@ -166,6 +177,18 @@ html,body{overflow-x:hidden}
   </form>
 </dialog>
 
+<dialog id="rdlg">
+  <h3 style="margin:0">🎲 Hoy les toca…</h3>
+  <div id="rtitle" style="font:600 1.6rem/1.15 Georgia,serif;margin:12px 0 2px"></div>
+  <div class="mut" id="rinfo"></div>
+  <div class="bar" style="margin:16px 0 0">
+    <a id="rgo" class="btnlink pri" target="_blank" rel="noopener">🧭 Cómo llegar</a>
+    <button type="button" id="ragain">🎲 Otro</button>
+    <button type="button" id="rvisit">✅ Ya fuimos</button>
+    <button type="button" onclick="this.closest('dialog').close()">Cerrar</button>
+  </div>
+</dialog>
+
 <dialog id="pdlg">
   <h3 id="ptitle"></h3>
   <div id="pgrid"></div>
@@ -187,6 +210,7 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt
 const AUTH_TYPE = new URLSearchParams(location.hash.replace(/^#/, '')).get('type');
 let needPwd = ['invite', 'recovery'].includes(AUTH_TYPE);
 const gEnabled = !GOOGLE_KEY.startsWith('PEGA');
+let fCui = '', fZone = '', fMin = 0, lastRand = null;
 let sb, me = null, lastId = undefined, R = [], RT = [], P = [], tab = 'v', view = 'list', editId = null, chan = null, linkBias = null, map = null, mapMarkers = [], needFit = true;
 
 let keepSession = true, authSub = null;
@@ -281,8 +305,54 @@ function stars(v, rid, mine) {
   return h + '</span>';
 }
 
+function zoneFrom(addr) {
+  const parts = String(addr || '').split(',').map(x => x.trim());
+  let k = parts.findIndex(x => /^regi[oó]n/i.test(x));
+  const part = k > 0 ? parts[k - 1] : parts[1];
+  return part ? part.replace(/^\d+\s*/, '').trim() || null : null;
+}
+function dirUrl(i) {
+  const dest = i.lat != null && i.lng != null ? i.lat + ',' + i.lng : encodeURIComponent((i.name || '') + ' ' + (i.zone || 'Santiago, Chile'));
+  return 'https://www.google.com/maps/dir/?api=1&destination=' + dest + (i.place_id ? '&destination_place_id=' + i.place_id : '');
+}
+function matches(i) {
+  const q = $('#q').value.toLowerCase();
+  return [i.name, i.zone, i.cuisine, i.notes].join(' ').toLowerCase().includes(q)
+    && (!fCui || i.cuisine === fCui) && (!fZone || i.zone === fZone) && (!fMin || (i.g || 0) >= fMin);
+}
+function fillFilters() {
+  const uniq = k => [...new Set(R.map(i => i[k]).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es'));
+  const fill = (sel, vals, cur, label) => {
+    if (cur && !vals.includes(cur)) cur = '';
+    sel.innerHTML = '<option value="">' + label + ': todas</option>' + vals.map(v => '<option value="' + esc(v) + '"' + (v === cur ? ' selected' : '') + '>' + esc(v) + '</option>').join('');
+    return cur;
+  };
+  fCui = fill($('#f-cui'), uniq('cuisine'), fCui, 'Cocina');
+  fZone = fill($('#f-zone'), uniq('zone'), fZone, 'Zona');
+  $('#f-min').value = String(fMin);
+  $('#f-clear').hidden = !(fCui || fZone || fMin);
+}
+$('#f-cui').onchange = e => { fCui = e.target.value; needFit = true; render(); };
+$('#f-zone').onchange = e => { fZone = e.target.value; needFit = true; render(); };
+$('#f-min').onchange = e => { fMin = +e.target.value; needFit = true; render(); };
+$('#f-clear').onclick = () => { fCui = ''; fZone = ''; fMin = 0; needFit = true; render(); };
+function pickRandom() {
+  const pool = R.filter(i => i.status === 'p' && matches(i));
+  if (!pool.length) { alert('No hay lugares por visitar con esos filtros.'); return; }
+  let c; do { c = pool[Math.floor(Math.random() * pool.length)]; } while (pool.length > 1 && c.id === lastRand);
+  lastRand = c.id;
+  $('#rtitle').textContent = c.name;
+  $('#rinfo').textContent = [c.zone, c.cuisine].filter(Boolean).join(' · ') + (c.g ? ' · ⭐ ' + Number(c.g).toFixed(1) : '');
+  $('#rgo').href = dirUrl(c);
+  $('#rvisit').onclick = async () => { await sb.from('restaurants').update({status: 'v'}).eq('id', c.id); $('#rdlg').close(); refresh(); };
+  if (!$('#rdlg').open) $('#rdlg').showModal();
+}
+$('#rand').onclick = pickRandom;
+$('#ragain').onclick = pickRandom;
+
 function render() {
   if (!me) return;
+  fillFilters();
   $('#c-v').textContent = '(' + R.filter(i => i.status === 'v').length + ')';
   $('#c-p').textContent = '(' + R.filter(i => i.status === 'p').length + ')';
   $('#sub').textContent = R.filter(i => i.status === 'v').length + ' visitados · ' + R.filter(i => i.status === 'p').length + ' por descubrir';
@@ -290,8 +360,8 @@ function render() {
   const q = $('#q').value.toLowerCase(), so = $('#sort').value;
   $('#tabs').hidden = view === 'map'; $('#list').hidden = view === 'map'; $('#mapwrap').hidden = view !== 'map';
   $('#vmap').textContent = view === 'map' ? '📋 Lista' : '🗺️ Mapa';
-  if (view === 'map') return renderMap(R.filter(i => [i.name, i.zone, i.cuisine, i.notes].join(' ').toLowerCase().includes(q)));
-  const l = R.filter(i => i.status === tab && [i.name, i.zone, i.cuisine, i.notes].join(' ').toLowerCase().includes(q));
+  if (view === 'map') return renderMap(R.filter(matches));
+  const l = R.filter(i => i.status === tab && matches(i));
   l.sort((a, b) => so === 'avg' ? avg(b.id) - avg(a.id) : so === 'g' ? (b.g || 0) - (a.g || 0) : so === 'az' ? a.name.localeCompare(b.name) : b.created_at.localeCompare(a.created_at));
   // siempre mostrar a los dos (o los que existan), yo primero
   const people = [...P].sort((a, b) => (b.id === me.id) - (a.id === me.id));
@@ -311,6 +381,7 @@ function render() {
     </div>
     <div class="acts">
       ${i.status === 'p' ? `<button data-a="visit" data-id="${i.id}" title="Ya fuimos">✅</button>` : ''}
+      <a href="${dirUrl(i)}" target="_blank" rel="noopener" title="Cómo llegar">🧭</a>
       <button data-a="photos" data-id="${i.id}" title="Fotos">📷</button>
       <button data-a="edit" data-id="${i.id}" title="Editar">✏️</button>
       <button data-a="del" data-id="${i.id}" title="Borrar">🗑️</button>
@@ -369,7 +440,7 @@ const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLow
 const GH = {'X-Goog-Api-Key': GOOGLE_KEY};
 async function lookupPlace(name, bias) {
   const r = await fetch('https://places.googleapis.com/v1/places:searchText', {method: 'POST',
-    headers: {...GH, 'Content-Type': 'application/json', 'X-Goog-FieldMask': 'places.id,places.displayName,places.rating,places.userRatingCount,places.location,places.formattedAddress'},
+    headers: {...GH, 'Content-Type': 'application/json', 'X-Goog-FieldMask': 'places.id,places.displayName,places.rating,places.userRatingCount,places.location,places.formattedAddress,places.primaryTypeDisplayName'},
     body: JSON.stringify({textQuery: name, languageCode: 'es', maxResultCount: 1,
       locationBias: {circle: {center: {latitude: bias?.lat ?? -33.45, longitude: bias?.lng ?? -70.65}, radius: bias ? 5000 : 30000}}})});
   const j = await r.json(); if (!r.ok) throw new Error(j.error?.message || r.status);
@@ -391,7 +462,8 @@ $('#f').addEventListener('submit', async () => {
         d.place_id = pl.id; d.g_count = pl.userRatingCount ?? null; d.g_updated = new Date().toISOString();
         if (d.g == null) d.g = pl.rating ?? null;
         d.lat = pl.location?.latitude ?? null; d.lng = pl.location?.longitude ?? null;
-        if (!d.zone) d.zone = (pl.formattedAddress || '').split(',')[1]?.replace(/^\s*\d+\s*/, '').trim() || null;
+        if (!d.zone) d.zone = zoneFrom(pl.formattedAddress);
+        if (!d.cuisine) d.cuisine = pl.primaryTypeDisplayName?.text ?? null;
         if (!d.url) d.url = 'https://www.google.com/maps/place/?q=place_id:' + pl.id;
       }
     } catch (e) { console.warn('Google:', e.message); }
@@ -424,7 +496,7 @@ async function showPhotos(id) {
 $('#gupd').onclick = async () => {
   if (!gEnabled) return alert('Falta configurar GOOGLE_KEY en index.html');
   const old = Date.now() - 30 * 864e5;
-  const todo = R.filter(i => !i.place_id || !i.g_updated || i.lat == null || new Date(i.g_updated) < old);
+  const todo = R.filter(i => !i.place_id || !i.g_updated || i.lat == null || !i.cuisine || !i.zone || new Date(i.g_updated) < old);
   if (!todo.length) return alert('Todo está al día');
   if (!confirm('¿Buscar nota y ubicación de Google de ' + todo.length + ' lugares?')) return;
   const btn = $('#gupd'); let ok = 0, miss = 0;
@@ -433,13 +505,14 @@ $('#gupd').onclick = async () => {
     try {
       let pl;
       if (i.place_id) {
-        const r = await fetch('https://places.googleapis.com/v1/places/' + i.place_id, {headers: {...GH, 'X-Goog-FieldMask': 'id,rating,userRatingCount,location'}});
+        const r = await fetch('https://places.googleapis.com/v1/places/' + i.place_id, {headers: {...GH, 'X-Goog-FieldMask': 'id,rating,userRatingCount,location,primaryTypeDisplayName,formattedAddress'}});
         pl = await r.json(); if (!r.ok) throw new Error(pl.error?.message || r.status);
       } else {
         pl = await lookupPlace(i.name + ' ' + (i.zone || ''), null);
         if (!pl) { miss++; continue; }
       }
       const {error} = await sb.from('restaurants').update({place_id: pl.id, g: pl.rating ?? i.g ?? null, g_count: pl.userRatingCount ?? null,
+        cuisine: i.cuisine || pl.primaryTypeDisplayName?.text || null, zone: i.zone || zoneFrom(pl.formattedAddress),
         lat: pl.location?.latitude ?? null, lng: pl.location?.longitude ?? null, g_updated: new Date().toISOString()}).eq('id', i.id);
       if (error) throw new Error(error.message);
       ok++;
@@ -466,7 +539,7 @@ function renderMap(items) {
     el.style.cssText = 'width:16px;height:16px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.4);cursor:pointer;background:' + (i.status === 'v' ? '#2e9e5b' : '#c8553d');
     const popup = new maplibregl.Popup({offset: 12}).setHTML('<b>' + esc(i.name) + '</b><br>' + esc(i.zone || '') +
       '<br>Google: ' + (i.g ? '⭐ ' + Number(i.g).toFixed(1) : '—') + (i.status === 'v' ? ' · Nosotros: ' + (a ? a.toFixed(1) : '—') : '') +
-      '<br><div style="display:flex;gap:6px;margin-top:6px"><button data-a="photos" data-id="' + i.id + '">📷 Fotos</button>' +
+      '<br><div style="display:flex;gap:6px;margin-top:6px;align-items:center"><button data-a="photos" data-id="' + i.id + '">📷 Fotos</button><a href="' + dirUrl(i) + '" target="_blank" rel="noopener">🧭 Cómo llegar</a>' +
       (i.status === 'p' ? '<button data-a="visit" data-id="' + i.id + '">✅ Ya fuimos</button>' : '<button data-a="unvisit" data-id="' + i.id + '">↩ Por visitar</button>') + '</div>');
     mapMarkers.push(new maplibregl.Marker({element: el}).setLngLat([i.lng, i.lat]).setPopup(popup).addTo(map));
     bounds.extend([i.lng, i.lat]);

@@ -44,11 +44,19 @@ dialog input,dialog select,dialog textarea,.login input{width:100%}
 .login{max-width:340px;margin:60px auto}
 .err{color:#d33;font-size:.85rem;margin-top:8px}
 [hidden]{display:none!important}
-.hero{margin:-16px calc(50% - 50vw) 18px;color:#fff;background:radial-gradient(120% 140% at 85% -20%,rgba(255,214,150,.55) 0%,transparent 55%),linear-gradient(120deg,#b8432c 0%,#d9692f 55%,#e8933f 100%)}
-@media(prefers-color-scheme:dark){.hero{background:radial-gradient(120% 140% at 85% -20%,rgba(255,170,90,.25) 0%,transparent 55%),linear-gradient(120deg,#5a2418 0%,#7d3a1c 60%,#8f5622 100%)}}
-.hero-in{max-width:820px;margin:0 auto;padding:34px 16px 28px}
-.hero h1{margin:0;font-family:Georgia,'Iowan Old Style','Times New Roman',serif;font-weight:600;font-size:clamp(2rem,6vw,2.8rem);line-height:1.05;letter-spacing:-.01em}
-.hero p{margin:10px 0 0;font-size:.95rem;opacity:.92}
+.hero{position:relative;overflow:hidden;margin:-16px calc(50% - 50vw) 18px;color:#fff;background:radial-gradient(90% 120% at 90% -10%,rgba(255,214,150,.6) 0%,transparent 55%),radial-gradient(60% 90% at 0% 110%,rgba(120,25,15,.55) 0%,transparent 60%),linear-gradient(120deg,#b8432c 0%,#d9692f 55%,#e8933f 100%);border-radius:0 0 28px 28px;box-shadow:0 10px 30px -12px rgba(120,40,20,.55)}
+@media(prefers-color-scheme:dark){.hero{background:radial-gradient(90% 120% at 90% -10%,rgba(255,170,90,.28) 0%,transparent 55%),radial-gradient(60% 90% at 0% 110%,rgba(0,0,0,.45) 0%,transparent 60%),linear-gradient(120deg,#5a2418 0%,#7d3a1c 60%,#8f5622 100%)}}
+.hero::before{content:"";position:absolute;inset:0;opacity:.13;background-image:radial-gradient(circle at 1px 1px,#fff 1.2px,transparent 1.6px);background-size:18px 18px;-webkit-mask-image:linear-gradient(100deg,transparent 30%,#000 100%);mask-image:linear-gradient(100deg,transparent 30%,#000 100%)}
+.hero .plate{position:absolute;right:max(-60px,calc(50% - 470px));top:50%;transform:translateY(-50%);width:210px;height:210px;border-radius:50%;border:2px solid rgba(255,255,255,.28);display:grid;place-items:center;font-size:84px;background:radial-gradient(circle,rgba(255,255,255,.2),rgba(255,255,255,.04) 70%);box-shadow:0 0 0 14px rgba(255,255,255,.06),0 0 0 30px rgba(255,255,255,.04)}
+.hero .plate span{filter:drop-shadow(0 6px 10px rgba(0,0,0,.25));transform:rotate(-12deg)}
+.hero-in{position:relative;max-width:820px;margin:0 auto;padding:30px 16px 26px}
+.hero .eyebrow{display:inline-block;font-size:.72rem;letter-spacing:.2em;text-transform:uppercase;font-weight:600;opacity:.85;padding:4px 10px;border:1px solid rgba(255,255,255,.4);border-radius:99px;backdrop-filter:blur(4px);background:rgba(255,255,255,.1)}
+.hero h1{margin:12px 0 0;font-family:Georgia,'Iowan Old Style','Times New Roman',serif;font-weight:600;font-size:clamp(2.1rem,7vw,3.2rem);line-height:1.02;letter-spacing:-.02em;text-shadow:0 2px 14px rgba(90,25,10,.35);max-width:78%}
+.hero h1 em{font-style:italic;font-weight:500;color:#ffe3b3}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:7px 13px;border-radius:99px;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.3);backdrop-filter:blur(6px);font-size:.88rem}
+.chip b{font-size:1.15rem;font-family:Georgia,serif}
+@media(max-width:520px){.hero .plate{width:130px;height:130px;font-size:52px;right:-28px;top:38%}.hero h1{max-width:72%}}
 html,body{overflow-x:hidden}
 .card{display:flex;gap:12px;align-items:flex-start}
 .cbody{flex:1;min-width:0}
@@ -114,7 +122,7 @@ html,body{overflow-x:hidden}
 
 <!-- App -->
 <div id="app" hidden>
-<header class="hero"><div class="hero-in"><h1>¿Dónde comemos hoy?</h1><p id="sub"></p></div></header>
+<header class="hero"><div class="plate"><span>🍝</span></div><div class="hero-in"><span class="eyebrow" id="eyebrow">Nuestra lista</span><h1>¿Dónde <em>comemos</em> hoy?</h1><div class="chips" id="sub"></div></div></header>
 <div class="bar tabs" id="tabs">
   <button id="t-v" class="on">✅ Visitados <span id="c-v"></span></button>
   <button id="t-p">📌 Por visitar <span id="c-p"></span></button>
@@ -355,7 +363,9 @@ function render() {
   fillFilters();
   $('#c-v').textContent = '(' + R.filter(i => i.status === 'v').length + ')';
   $('#c-p').textContent = '(' + R.filter(i => i.status === 'p').length + ')';
-  $('#sub').textContent = R.filter(i => i.status === 'v').length + ' visitados · ' + R.filter(i => i.status === 'p').length + ' por descubrir';
+  const nv = R.filter(i => i.status === 'v').length, np = R.filter(i => i.status === 'p').length;
+  $('#sub').innerHTML = `<span class="chip">✅ <b>${nv}</b> visitados</span><span class="chip">📌 <b>${np}</b> por descubrir</span>`;
+  const h = new Date().getHours(); $('#eyebrow').textContent = h < 12 ? 'Buen día · desayuno?' : h < 16 ? 'Hora de almuerzo' : h < 20 ? 'Once o cena?' : 'Cena de hoy';
   $('#t-v').classList.toggle('on', tab === 'v'); $('#t-p').classList.toggle('on', tab === 'p');
   const q = $('#q').value.toLowerCase(), so = $('#sort').value;
   $('#tabs').hidden = view === 'map'; $('#list').hidden = view === 'map'; $('#mapwrap').hidden = view !== 'map';

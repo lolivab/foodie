@@ -102,7 +102,8 @@ html,body{overflow-x:hidden}
   <h1>🍽️ ¿Dónde comemos hoy?</h1>
   <label>Correo</label><input name="email" type="email" required autocomplete="email">
   <label>Contraseña</label><input name="pw" type="password" required autocomplete="current-password">
-  <div class="bar" style="margin-top:14px"><button class="pri grow">Entrar</button></div>
+  <label style="display:flex;gap:8px;align-items:center;margin-top:12px;cursor:pointer"><input type="checkbox" name="keep" checked style="width:auto;margin:0"> No cerrar mi sesión</label>
+  <div class="bar" style="margin-top:12px"><button class="pri grow">Entrar</button></div>
   <div class="bar" style="margin:8px 0 0"><button type="button" id="forgot" style="border:0;background:transparent;padding:0;color:var(--mut);text-decoration:underline;font-size:.85rem">Crear o recuperar contraseña</button></div>
   <div class="err" id="lerr"></div>
 </form>
@@ -188,10 +189,19 @@ let needPwd = ['invite', 'recovery'].includes(AUTH_TYPE);
 const gEnabled = !GOOGLE_KEY.startsWith('PEGA');
 let sb, me = null, lastId = undefined, R = [], RT = [], P = [], tab = 'v', view = 'list', editId = null, chan = null, linkBias = null, map = null, mapMarkers = [], needFit = true;
 
+let keepSession = true, authSub = null;
+try { keepSession = localStorage.getItem('keepSession') !== '0'; } catch (e) {}
+function initClient(keep) {
+  if (authSub) authSub.unsubscribe();
+  if (sb) { try { sb.removeAllChannels(); } catch (e) {} }
+  keepSession = keep;
+  sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {auth: {storage: keep ? window.localStorage : window.sessionStorage, persistSession: true, autoRefreshToken: true}});
+  authSub = sb.auth.onAuthStateChange((_e, session) => setSession(session)).data.subscription;
+}
 if (SUPABASE_URL.startsWith('PEGA')) { $('#noconf').hidden = false; }
 else {
-  sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  sb.auth.onAuthStateChange((_e, session) => setSession(session));
+  $('#login').elements.keep.checked = keepSession;
+  initClient(keepSession);
   sb.auth.getSession().then(({data}) => setSession(data.session));
 }
 
@@ -235,6 +245,13 @@ async function askName() {
 $('#login').addEventListener('submit', async e => {
   e.preventDefault();
   const f = e.target.elements;
+  const keep = f.keep.checked;
+  try { localStorage.setItem('keepSession', keep ? '1' : '0'); } catch (x) {}
+  if (keep !== keepSession) initClient(keep);
+  try {
+    const store = keep ? sessionStorage : localStorage;   // limpiar el almacenamiento que no se usará
+    Object.keys(store).filter(k => /^sb-.*-auth-token/.test(k)).forEach(k => store.removeItem(k));
+  } catch (x) {}
   const {error} = await sb.auth.signInWithPassword({email: f.email.value.trim(), password: f.pw.value});
   $('#lerr').textContent = error ? 'Correo o contraseña incorrectos' : '';
 });

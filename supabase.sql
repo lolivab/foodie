@@ -66,3 +66,13 @@ alter table public.restaurants
 
 -- Migración 4: foto de portada
 alter table public.restaurants add column if not exists photo_name text;
+
+-- Migración 5: secciones Comer / Paseos (ya aplicada vía conector)
+alter table public.restaurants
+  add column if not exists category text not null default 'comer' check (category in ('comer','paseo')),
+  add column if not exists kind text,
+  add column if not exists visited_on date,
+  add column if not exists duration text,
+  add column if not exists cost text,
+  add column if not exists comment text;
+create index if not exists restaurants_category_idx on public.restaurants(category);

@@ -1,0 +1,617 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>¿Y hoy qué hacemos?</title>
+<link rel="icon" href="../favicon.ico" sizes="any">
+<link rel="icon" type="image/png" href="../favicon.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<style>
+:root{--bg:#faf7f2;--card:#fff;--tx:#2b2622;--mut:#8a8178;--ac:#c8553d;--ln:#e8e2d9;--gold:#e5a50a}
+@media(prefers-color-scheme:dark){:root{--bg:#1c1917;--card:#292524;--tx:#f5f0ea;--mut:#a39a90;--ln:#3d3835}}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:var(--bg);color:var(--tx)}
+main{max-width:820px;margin:0 auto;padding:16px}
+h1{margin:8px 0 14px;font-size:1.6rem}
+.bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+input,select,textarea,button{font:inherit;color:inherit;background:var(--card);border:1px solid var(--ln);border-radius:8px;padding:8px 10px}
+button{cursor:pointer}
+button.pri{background:var(--ac);color:#fff;border-color:var(--ac)}
+.tabs button{flex:1;font-weight:600}
+.tabs button.on{background:var(--ac);color:#fff;border-color:var(--ac)}
+.grow{flex:1;min-width:140px}
+.card{background:var(--card);border:1px solid var(--ln);border-radius:12px;padding:14px;margin-bottom:10px}
+.card h3{margin:0 0 2px;font-size:1.1rem}
+.mut{color:var(--mut);font-size:.85rem}
+.row{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;align-items:center}
+.stars{display:inline-flex;gap:1px;font-size:1.3rem;line-height:1}
+.stars span{color:var(--ln)}
+.stars.me span{cursor:pointer}
+.stars span.f{color:var(--gold)}
+.who{display:flex;flex-direction:column;gap:2px;font-size:.8rem;color:var(--mut)}
+.g{font-weight:700;color:var(--tx)}
+.acts{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
+.acts button{padding:5px 9px;font-size:.8rem}
+dialog{border:1px solid var(--ln);border-radius:12px;background:var(--card);color:var(--tx);width:min(94vw,440px)}
+dialog::backdrop{background:#0006}
+dialog label,.login label{display:block;margin:8px 0 3px;font-size:.85rem;color:var(--mut)}
+dialog input,dialog select,dialog textarea,.login input{width:100%}
+.empty{text-align:center;color:var(--mut);padding:30px}
+.login{max-width:340px;margin:60px auto}
+.err{color:#d33;font-size:.85rem;margin-top:8px}
+[hidden]{display:none!important}
+.hero{position:relative;overflow:hidden;margin:-16px calc(50% - 50vw) 18px;color:#fff;background:radial-gradient(90% 120% at 90% -10%,rgba(255,214,150,.6) 0%,transparent 55%),radial-gradient(60% 90% at 0% 110%,rgba(120,25,15,.55) 0%,transparent 60%),linear-gradient(120deg,#b8432c 0%,#d9692f 55%,#e8933f 100%);border-radius:0 0 28px 28px;box-shadow:0 10px 30px -12px rgba(120,40,20,.55)}
+@media(prefers-color-scheme:dark){.hero{background:radial-gradient(90% 120% at 90% -10%,rgba(255,170,90,.28) 0%,transparent 55%),radial-gradient(60% 90% at 0% 110%,rgba(0,0,0,.45) 0%,transparent 60%),linear-gradient(120deg,#5a2418 0%,#7d3a1c 60%,#8f5622 100%)}}
+.hero::before{content:"";position:absolute;inset:0;opacity:.13;background-image:radial-gradient(circle at 1px 1px,#fff 1.2px,transparent 1.6px);background-size:18px 18px;-webkit-mask-image:linear-gradient(100deg,transparent 30%,#000 100%);mask-image:linear-gradient(100deg,transparent 30%,#000 100%)}
+.hero .plate{position:absolute;right:max(-60px,calc(50% - 470px));top:50%;transform:translateY(-50%);width:210px;height:210px;border-radius:50%;border:2px solid rgba(255,255,255,.28);display:grid;place-items:center;font-size:84px;background:radial-gradient(circle,rgba(255,255,255,.2),rgba(255,255,255,.04) 70%);box-shadow:0 0 0 14px rgba(255,255,255,.06),0 0 0 30px rgba(255,255,255,.04)}
+.hero .plate span{filter:drop-shadow(0 6px 10px rgba(0,0,0,.25));transform:rotate(-12deg)}
+.hero-in{position:relative;max-width:820px;margin:0 auto;padding:30px 16px 26px}
+.hero .eyebrow{display:inline-block;font-size:.72rem;letter-spacing:.2em;text-transform:uppercase;font-weight:600;opacity:.85;padding:4px 10px;border:1px solid rgba(255,255,255,.4);border-radius:99px;backdrop-filter:blur(4px);background:rgba(255,255,255,.1)}
+.hero h1{margin:12px 0 0;font-family:Georgia,'Iowan Old Style','Times New Roman',serif;font-weight:600;font-size:clamp(2.1rem,7vw,3.2rem);line-height:1.02;letter-spacing:-.02em;text-shadow:0 2px 14px rgba(90,25,10,.35);max-width:78%}
+.hero h1 em{font-style:italic;font-weight:500;color:#ffe3b3}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:7px 13px;border-radius:99px;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.3);backdrop-filter:blur(6px);font-size:.88rem}
+.chip b{font-size:1.15rem;font-family:Georgia,serif}
+@media(max-width:520px){.hero .plate{width:130px;height:130px;font-size:52px;right:-28px;top:38%}.hero h1{max-width:72%}}
+html,body{overflow-x:hidden}
+.card{display:flex;gap:12px;align-items:flex-start}
+.cbody{flex:1;min-width:0}
+.thumb{flex:0 0 92px;width:92px;height:92px;border-radius:12px;object-fit:cover;cursor:pointer;background:linear-gradient(135deg,#d9692f,#e8b36a);color:#fff;display:flex;align-items:center;justify-content:center;font:600 2rem Georgia,serif}
+@media(max-width:480px){.thumb{flex-basis:72px;width:72px;height:72px}}
+.card{padding:9px 11px;margin-bottom:7px;gap:10px;border-radius:10px;align-items:center}
+.card h3{font-size:.98rem;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card .mut{font-size:.78rem}
+.note{margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card .row{margin-top:5px;gap:4px 12px}
+.card .stars{font-size:1.05rem}
+.card .who{font-size:.7rem;flex-direction:row;align-items:center;gap:5px}
+.card .acts{gap:4px}
+.card .acts button{padding:3px 7px;font-size:.75rem}
+.thumb{flex:0 0 64px;width:64px;height:64px;border-radius:10px;font-size:1.5rem}
+@media(max-width:480px){.thumb{flex-basis:54px;width:54px;height:54px}.card .acts{margin-left:0;width:100%}}
+.card{display:flex;flex-wrap:wrap;align-items:center;gap:2px 12px;padding:7px 11px;margin-bottom:6px;border-radius:10px}
+.main{flex:1 1 200px;min-width:0}
+.card h3{font-size:.95rem;line-height:1.25}
+.sub{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:.76rem;line-height:1.3}
+.stats{display:flex;align-items:center;flex-wrap:wrap;gap:2px 12px}
+.card .stars{font-size:1rem}
+.card .who small{font-weight:400}
+.card .acts{margin:0 0 0 auto;width:auto;display:flex;gap:0}
+.card .acts button{border:0;background:transparent;padding:3px 6px;font-size:1rem}
+.card{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 8px;align-items:center}
+.card .main{grid-column:1;grid-row:1}
+.card .acts{grid-column:2;grid-row:1;margin:0;justify-self:end}
+.card .stats{grid-column:1/-1;grid-row:2;display:grid;gap:4px 8px;align-items:end}
+.card .who{display:flex;flex-direction:column;align-items:flex-start;gap:1px;min-width:0;font-size:.82rem}
+.card .who .lbl{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--mut);font-size:.68rem;line-height:1.2}
+.card .who .g{line-height:1.3;white-space:nowrap}
+.card .stars{font-size:1rem;line-height:1}
+.btnlink{display:inline-block;border:1px solid var(--ln);border-radius:8px;padding:8px 10px;background:var(--card);color:inherit;text-decoration:none}
+.btnlink.pri{background:var(--ac);color:#fff;border-color:var(--ac)}
+#filters select{flex:1;min-width:105px}
+.card .acts a{border:0;padding:3px 6px;font-size:1rem;text-decoration:none;color:inherit;line-height:1.4}
+#map{height:65vh;border-radius:12px;border:1px solid var(--ln);z-index:0}
+.hint{font-size:.8rem;color:var(--mut);margin-top:4px}
+.maplibregl-popup-content{color:#2b2622;font:inherit;font-size:.85rem}
+#pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin:10px 0;max-height:60vh;overflow:auto}
+#pgrid img{width:100%;border-radius:8px;display:block}
+#pgrid figure{margin:0}#pgrid figcaption{font-size:.7rem}
+#pdlg{width:min(96vw,760px)}
+.hero.paseo{background:radial-gradient(90% 120% at 90% -10%,rgba(190,240,230,.55) 0%,transparent 55%),radial-gradient(60% 90% at 0% 110%,rgba(10,50,70,.55) 0%,transparent 60%),linear-gradient(120deg,#1b6f86 0%,#2a8f8a 55%,#5bb38a 100%);box-shadow:0 10px 30px -12px rgba(20,90,100,.55)}
+@media(prefers-color-scheme:dark){.hero.paseo{background:radial-gradient(90% 120% at 90% -10%,rgba(120,220,200,.25) 0%,transparent 55%),radial-gradient(60% 90% at 0% 110%,rgba(0,0,0,.45) 0%,transparent 60%),linear-gradient(120deg,#103f4d 0%,#175e5d 60%,#2b6e53 100%)}}
+.hero h1{max-width:80%}
+.seg{display:flex;gap:6px;background:var(--card);border:1px solid var(--ln);border-radius:14px;padding:4px;margin-bottom:12px}
+.seg button{flex:1;border:0;background:transparent;border-radius:10px;padding:10px 8px;font-weight:600;font-size:1rem}
+.seg button.on{background:var(--ac);color:#fff}
+.seg.paseo button.on{background:#1f8a8a}
+.mh{font:600 .8rem system-ui;letter-spacing:.08em;text-transform:uppercase;color:var(--mut);margin:14px 2px 6px}
+.tag{display:inline-block;font-size:.68rem;padding:1px 7px;border-radius:99px;background:var(--ln);color:var(--tx);margin-right:4px}
+</style>
+</head>
+<body>
+<main>
+
+<!-- Pantalla de configuración faltante -->
+<div id="noconf" class="empty" hidden>Falta configurar SUPABASE_URL y SUPABASE_KEY en index.html</div>
+
+<!-- Login -->
+<form id="login" class="login" hidden>
+  <h1>🧭 ¿Y hoy qué hacemos?</h1>
+  <label>Correo</label><input name="email" type="email" required autocomplete="email">
+  <label>Contraseña</label><input name="pw" type="password" required autocomplete="current-password">
+  <label style="display:flex;gap:8px;align-items:center;margin-top:12px;cursor:pointer"><input type="checkbox" name="keep" checked style="width:auto;margin:0"> No cerrar mi sesión</label>
+  <div class="bar" style="margin-top:12px"><button class="pri grow">Entrar</button></div>
+  <div class="bar" style="margin:8px 0 0"><button type="button" id="forgot" style="border:0;background:transparent;padding:0;color:var(--mut);text-decoration:underline;font-size:.85rem">Crear o recuperar contraseña</button></div>
+  <div class="err" id="lerr"></div>
+</form>
+
+<!-- App -->
+<div id="app" hidden>
+<header class="hero" id="hero"><div class="plate"><span id="plate">🍝</span></div><div class="hero-in"><span class="eyebrow" id="eyebrow">Nuestra lista</span><h1>¿Y hoy qué <em>hacemos</em>?</h1><div class="chips" id="sub"></div></div></header>
+<div class="seg" id="seg"><button id="s-comer" class="on">🍽️ Comer</button><button id="s-paseo">🌳 Paseos</button></div>
+<div class="bar tabs" id="tabs">
+  <button id="t-v" class="on">✅ Visitados <span id="c-v"></span></button>
+  <button id="t-p">📌 Por visitar <span id="c-p"></span></button>
+</div>
+<div class="bar">
+  <input id="q" class="grow" placeholder="Buscar nombre, zona, cocina…">
+  <select id="sort">
+    <option value="avg">Mejor nuestra nota</option>
+    <option value="g">Mejor nota Google</option>
+    <option value="date" id="o-date" hidden>Más recientes (fecha)</option>
+    <option value="new">Agregados recién</option>
+    <option value="az">A–Z</option>
+  </select>
+  <button id="vmap">🗺️ Mapa</button>
+  <button class="pri" id="add">+ Agregar</button>
+</div>
+<div class="bar" id="filters">
+  <select id="f-cui"><option value="">Cocina: todas</option></select>
+  <select id="f-zone"><option value="">Zona: todas</option></select>
+  <select id="f-min"><option value="0">Nota Google: todas</option><option value="4">4,0 o más</option><option value="4.3">4,3 o más</option><option value="4.5">4,5 o más</option><option value="4.7">4,7 o más</option></select>
+  <button id="f-clear" hidden>Limpiar</button>
+  <button class="pri" id="rand">🎲 Sorpréndenos</button>
+</div>
+<div id="list"></div>
+<div id="mapwrap" hidden><div id="map"></div><div class="hint" id="mapnote"></div></div>
+<div class="bar" style="margin-top:20px">
+  <button id="myname">✏️ Mi nombre</button>
+  <button id="gupd">🔄 Actualizar notas de Google</button>
+  
+  <button id="logout">Salir</button>
+</div>
+</div>
+</main>
+
+<dialog id="dlg">
+  <form method="dialog" id="f">
+    <h3 id="dt">Agregar restaurante</h3>
+    <label>Pega aquí un enlace de Google Maps</label><input name="url" type="url" placeholder="https://www.google.com/maps/place/…">
+    <div class="hint" id="uhint"></div>
+    <label>Nombre *</label><input name="name" required>
+    <label>Zona / ciudad</label><input name="zone">
+    <div id="cwrap"><label>Tipo de cocina</label><input name="cuisine"></div>
+    <div id="kwrap" hidden><label>Tipo de paseo</label><input name="kind" list="kinds" placeholder="parque, mirador, museo…"><datalist id="kinds"><option>Parque</option><option>Mirador</option><option>Museo</option><option>Playa</option><option>Sendero</option><option>Pueblo</option><option>Evento</option><option>Otro</option></datalist></div>
+    <label>Nota en Google Maps (0–5)</label><input name="g" type="number" min="0" max="5" step="0.1">
+    <label>Estado</label>
+    <select name="status"><option value="p">Por visitar</option><option value="v">Visitado</option></select>
+    <div id="pextra" hidden>
+      <label>Fecha en que fuimos</label><input name="visited_on" type="date">
+      <label>Duración</label><select name="duration"><option value="">—</option><option>1 hora</option><option>Medio día</option><option>Día completo</option><option>Fin de semana</option></select>
+      <label>Costo</label><select name="cost"><option value="">—</option><option>Gratis</option><option>Pago</option></select>
+      <label>Recuerdo / comentario</label><textarea name="comment" rows="2" placeholder="Qué nos gustó, qué repetiríamos…"></textarea>
+    </div>
+    <label>Notas</label><textarea name="notes" rows="2"></textarea>
+    <div class="bar" style="margin-top:12px;justify-content:flex-end">
+      <button type="button" id="cancel">Cancelar</button>
+      <button class="pri" value="ok">Guardar</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="pwdlg">
+  <form id="pwf">
+    <h3>Crea tu contraseña</h3>
+    <label>Nueva contraseña (mínimo 6 caracteres)</label>
+    <input name="pw" type="password" minlength="6" required autocomplete="new-password">
+    <div class="err" id="pwerr"></div>
+    <div class="bar" style="margin-top:12px;justify-content:flex-end"><button class="pri">Guardar</button></div>
+  </form>
+</dialog>
+
+<dialog id="rdlg">
+  <h3 style="margin:0">🎲 Hoy les toca…</h3>
+  <div id="rtitle" style="font:600 1.6rem/1.15 Georgia,serif;margin:12px 0 2px"></div>
+  <div class="mut" id="rinfo"></div>
+  <div class="bar" style="margin:16px 0 0">
+    <a id="rgo" class="btnlink pri" target="_blank" rel="noopener">🧭 Cómo llegar</a>
+    <button type="button" id="ragain">🎲 Otro</button>
+    <button type="button" id="rvisit">✅ Ya fuimos</button>
+    <button type="button" onclick="this.closest('dialog').close()">Cerrar</button>
+  </div>
+</dialog>
+
+<dialog id="pdlg">
+  <h3 id="ptitle"></h3>
+  <div id="pgrid"></div>
+  <div class="bar" style="justify-content:space-between;margin:0">
+    <a id="pmaps" href="#" target="_blank" rel="noopener">Ver en Google Maps ↗</a>
+    <button type="button" onclick="document.querySelector('#pdlg').close()">Cerrar</button>
+  </div>
+</dialog>
+
+<script>
+// ====== CONFIGURACIÓN (Supabase > Project Settings > API) ======
+const SUPABASE_URL = 'https://wsuqfcvijysvlugrqwug.supabase.co';
+const GOOGLE_KEY = 'AIzaSyA8nLiIItHFK167-KXcBcmaau97qK5nxGc'; // Google Cloud > Places API (New)
+const SUPABASE_KEY = 'sb_publishable_quxHZEvhvS7YdpXdFQkFFQ_2GHIiDny';
+// ================================================================
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const AUTH_TYPE = new URLSearchParams(location.hash.replace(/^#/, '')).get('type');
+let needPwd = ['invite', 'recovery'].includes(AUTH_TYPE);
+const gEnabled = !GOOGLE_KEY.startsWith('PEGA');
+let cat = 'comer'; try { cat = localStorage.getItem('cat') === 'paseo' ? 'paseo' : 'comer'; } catch (e) {}
+const RC = () => R.filter(i => (i.category || 'comer') === cat);
+const FK = () => cat === 'paseo' ? 'kind' : 'cuisine';
+let fCui = '', fZone = '', fMin = 0, lastRand = null;
+let sb, me = null, lastId = undefined, R = [], RT = [], P = [], tab = 'v', view = 'list', editId = null, chan = null, linkBias = null, map = null, mapMarkers = [], needFit = true;
+
+let keepSession = true, authSub = null;
+try { keepSession = localStorage.getItem('keepSession') !== '0'; } catch (e) {}
+function initClient(keep) {
+  if (authSub) authSub.unsubscribe();
+  if (sb) { try { sb.removeAllChannels(); } catch (e) {} }
+  keepSession = keep;
+  sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {auth: {storage: keep ? window.localStorage : window.sessionStorage, persistSession: true, autoRefreshToken: true}});
+  authSub = sb.auth.onAuthStateChange((_e, session) => setSession(session)).data.subscription;
+}
+if (SUPABASE_URL.startsWith('PEGA')) { $('#noconf').hidden = false; }
+else {
+  $('#login').elements.keep.checked = keepSession;
+  initClient(keepSession);
+  sb.auth.getSession().then(({data}) => setSession(data.session));
+}
+
+async function setSession(session) {
+  const u = session?.user || null;
+  const id = u?.id || null;
+  if (id === lastId) return;
+  lastId = id;
+  me = u;
+  $('#login').hidden = !!me;
+  $('#app').hidden = !me;
+  if (chan) { sb.removeChannel(chan); chan = null; }
+  if (!me) return;
+  await refresh();
+  if (!P.find(p => p.id === me.id)) await askName();
+  if (needPwd) { needPwd = false; $('#pwdlg').showModal(); }
+  chan = sb.channel('cambios')
+    .on('postgres_changes', {event: '*', schema: 'public', table: 'restaurants'}, refresh)
+    .on('postgres_changes', {event: '*', schema: 'public', table: 'ratings'}, refresh)
+    .subscribe();
+}
+
+async function refresh() {
+  const [a, b, c] = await Promise.all([
+    sb.from('restaurants').select('*'),
+    sb.from('ratings').select('*'),
+    sb.from('profiles').select('*')
+  ]);
+  R = a.data || []; RT = b.data || []; P = c.data || [];
+  render();
+}
+
+async function askName() {
+  const cur = P.find(p => p.id === me.id)?.name || '';
+  const n = prompt('¿Cómo te llamas? (se muestra junto a tus estrellas)', cur);
+  if (!n || !n.trim()) return;
+  await sb.from('profiles').upsert({id: me.id, name: n.trim()});
+  await refresh();
+}
+
+$('#login').addEventListener('submit', async e => {
+  e.preventDefault();
+  const f = e.target.elements;
+  const keep = f.keep.checked;
+  try { localStorage.setItem('keepSession', keep ? '1' : '0'); } catch (x) {}
+  if (keep !== keepSession) initClient(keep);
+  try {
+    const store = keep ? sessionStorage : localStorage;   // limpiar el almacenamiento que no se usará
+    Object.keys(store).filter(k => /^sb-.*-auth-token/.test(k)).forEach(k => store.removeItem(k));
+  } catch (x) {}
+  const {error} = await sb.auth.signInWithPassword({email: f.email.value.trim(), password: f.pw.value});
+  $('#lerr').textContent = error ? 'Correo o contraseña incorrectos' : '';
+});
+$('#pwf').addEventListener('submit', async e => {
+  e.preventDefault();
+  const {error} = await sb.auth.updateUser({password: e.target.elements.pw.value});
+  if (error) { $('#pwerr').textContent = error.message; return; }
+  history.replaceState(null, '', location.pathname);
+  $('#pwdlg').close();
+});
+$('#forgot').onclick = async () => {
+  const email = $('#login').elements.email.value.trim();
+  if (!email) { $('#lerr').textContent = 'Escribe primero tu correo arriba.'; return; }
+  const {error} = await sb.auth.resetPasswordForEmail(email, {redirectTo: location.origin + location.pathname});
+  $('#lerr').textContent = error ? error.message : 'Te enviamos un correo con un enlace para crear tu contraseña.';
+};
+$('#logout').onclick = () => sb.auth.signOut();
+$('#myname').onclick = askName;
+
+const ratingsOf = id => RT.filter(r => r.restaurant_id === id);
+const avg = id => { const a = ratingsOf(id); return a.length ? a.reduce((s, r) => s + r.stars, 0) / a.length : 0; };
+const nameOf = uid => P.find(p => p.id === uid)?.name || 'Sin nombre';
+
+function stars(v, rid, mine) {
+  let h = `<span class="stars ${mine ? 'me' : ''}">`;
+  for (let i = 1; i <= 5; i++) h += `<span class="${i <= v ? 'f' : ''}" ${mine ? `data-rid="${rid}" data-v="${i}"` : ''}>★</span>`;
+  return h + '</span>';
+}
+
+function zoneFrom(addr) {
+  const parts = String(addr || '').split(',').map(x => x.trim());
+  let k = parts.findIndex(x => /^regi[oó]n/i.test(x));
+  const part = k > 0 ? parts[k - 1] : parts[1];
+  return part ? part.replace(/^\d+\s*/, '').trim() || null : null;
+}
+function dirUrl(i) {
+  const dest = i.lat != null && i.lng != null ? i.lat + ',' + i.lng : encodeURIComponent((i.name || '') + ' ' + (i.zone || 'Santiago, Chile'));
+  return 'https://www.google.com/maps/dir/?api=1&destination=' + dest + (i.place_id ? '&destination_place_id=' + i.place_id : '');
+}
+function matches(i) {
+  const q = $('#q').value.toLowerCase();
+  return [i.name, i.zone, i[FK()], i.notes, i.comment].join(' ').toLowerCase().includes(q)
+    && (!fCui || i[FK()] === fCui) && (!fZone || i.zone === fZone) && (!fMin || (i.g || 0) >= fMin);
+}
+function fillFilters() {
+  const uniq = k => [...new Set(RC().map(i => i[k]).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es'));
+  const fill = (sel, vals, cur, label) => {
+    if (cur && !vals.includes(cur)) cur = '';
+    sel.innerHTML = '<option value="">' + label + ': todas</option>' + vals.map(v => '<option value="' + esc(v) + '"' + (v === cur ? ' selected' : '') + '>' + esc(v) + '</option>').join('');
+    return cur;
+  };
+  fCui = fill($('#f-cui'), uniq(FK()), fCui, cat === 'paseo' ? 'Tipo' : 'Cocina');
+  fZone = fill($('#f-zone'), uniq('zone'), fZone, 'Zona');
+  $('#f-min').value = String(fMin);
+  $('#f-clear').hidden = !(fCui || fZone || fMin);
+}
+$('#f-cui').onchange = e => { fCui = e.target.value; needFit = true; render(); };
+$('#f-zone').onchange = e => { fZone = e.target.value; needFit = true; render(); };
+$('#f-min').onchange = e => { fMin = +e.target.value; needFit = true; render(); };
+$('#f-clear').onclick = () => { fCui = ''; fZone = ''; fMin = 0; needFit = true; render(); };
+function pickRandom() {
+  const pool = RC().filter(i => i.status === 'p' && matches(i));
+  if (!pool.length) { alert('No hay lugares por visitar con esos filtros.'); return; }
+  let c; do { c = pool[Math.floor(Math.random() * pool.length)]; } while (pool.length > 1 && c.id === lastRand);
+  lastRand = c.id;
+  $('#rtitle').textContent = c.name;
+  $('#rinfo').textContent = [c.zone, c[FK()]].filter(Boolean).join(' · ') + (c.g ? ' · ⭐ ' + Number(c.g).toFixed(1) : '');
+  $('#rgo').href = dirUrl(c);
+  $('#rvisit').onclick = async () => { await sb.from('restaurants').update(visitPatch(c)).eq('id', c.id); $('#rdlg').close(); refresh(); };
+  if (!$('#rdlg').open) $('#rdlg').showModal();
+}
+$('#rand').onclick = pickRandom;
+$('#ragain').onclick = pickRandom;
+
+const visitPatch = i => i.category === 'paseo' && !i.visited_on ? {status: 'v', visited_on: new Date().toISOString().slice(0, 10)} : {status: 'v'};
+const MES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+const fmtDate = d => { if (!d) return ''; const [y, m, dd] = d.split('-'); return +dd + ' ' + MES[m - 1].slice(0, 3) + ' ' + y; };
+function setCat(c) {
+  cat = c; try { localStorage.setItem('cat', c); } catch (e) {}
+  fCui = ''; fZone = ''; fMin = 0; needFit = true; tab = 'v';
+  $('#sort').value = c === 'paseo' ? 'date' : 'avg';
+  render();
+}
+$('#s-comer').onclick = () => setCat('comer');
+$('#s-paseo').onclick = () => setCat('paseo');
+function render() {
+  if (!me) return;
+  const pa = cat === 'paseo', RL = RC();
+  $('#hero').classList.toggle('paseo', pa); $('#seg').classList.toggle('paseo', pa);
+  $('#s-comer').classList.toggle('on', !pa); $('#s-paseo').classList.toggle('on', pa);
+  $('#plate').textContent = pa ? '🧭' : '🍝';
+  $('#o-date').hidden = !pa;
+  if (!pa && $('#sort').value === 'date') $('#sort').value = 'avg';
+  $('#q').placeholder = pa ? 'Buscar paseo, zona, tipo…' : 'Buscar nombre, zona, cocina…';
+  $('#t-v').innerHTML = (pa ? '🥾 Ya fuimos ' : '✅ Visitados ') + '<span id="c-v"></span>';
+  $('#t-p').innerHTML = (pa ? '📌 Por ir ' : '📌 Por visitar ') + '<span id="c-p"></span>';
+  $('#add').textContent = '+ Agregar';
+  fillFilters();
+  const nv = RL.filter(i => i.status === 'v').length, np = RL.filter(i => i.status === 'p').length;
+  $('#c-v').textContent = '(' + nv + ')'; $('#c-p').textContent = '(' + np + ')';
+  $('#sub').innerHTML = pa ? `<span class="chip">🥾 <b>${nv}</b> paseos hechos</span><span class="chip">📌 <b>${np}</b> por conocer</span>` : `<span class="chip">✅ <b>${nv}</b> visitados</span><span class="chip">📌 <b>${np}</b> por descubrir</span>`;
+  const h = new Date().getHours(); $('#eyebrow').textContent = pa ? (h < 12 ? 'Buen día · salida?' : h < 18 ? 'Tarde de paseo' : 'Plan de noche') : h < 12 ? 'Buen día · desayuno?' : h < 16 ? 'Hora de almuerzo' : h < 20 ? 'Once o cena?' : 'Cena de hoy';
+  $('#t-v').classList.toggle('on', tab === 'v'); $('#t-p').classList.toggle('on', tab === 'p');
+  const q = $('#q').value.toLowerCase(), so = $('#sort').value;
+  $('#tabs').hidden = view === 'map'; $('#list').hidden = view === 'map'; $('#mapwrap').hidden = view !== 'map';
+  $('#vmap').textContent = view === 'map' ? '📋 Lista' : '🗺️ Mapa';
+  if (view === 'map') return renderMap(RL.filter(matches));
+  const l = RL.filter(i => i.status === tab && matches(i));
+  l.sort((a, b) => so === 'date' ? (b.visited_on || b.created_at.slice(0, 10)).localeCompare(a.visited_on || a.created_at.slice(0, 10)) : so === 'avg' ? avg(b.id) - avg(a.id) : so === 'g' ? (b.g || 0) - (a.g || 0) : so === 'az' ? a.name.localeCompare(b.name) : b.created_at.localeCompare(a.created_at));
+  // siempre mostrar a los dos (o los que existan), yo primero
+  const people = [...P].sort((a, b) => (b.id === me.id) - (a.id === me.id));
+  if (!people.find(p => p.id === me.id)) people.unshift({id: me.id, name: 'Yo'});
+  let lastMonth = '';
+  $('#list').innerHTML = l.length ? l.map(i => {
+    const rs = ratingsOf(i.id), a = avg(i.id);
+    let head = '';
+    if (pa && tab === 'v' && so === 'date') { const m = i.visited_on ? MES[+i.visited_on.slice(5, 7) - 1] + ' ' + i.visited_on.slice(0, 4) : 'Sin fecha'; if (m !== lastMonth) { head = '<div class="mh">' + m + '</div>'; lastMonth = m; } }
+    return head + `
+  <div class="card">
+    <div class="main">
+      <h3>${i.url ? `<a href="${esc(i.url)}" target="_blank" rel="noopener" style="color:inherit">${esc(i.name)}</a>` : esc(i.name)}</h3>
+      <div class="mut sub">${pa ? [i.visited_on ? fmtDate(i.visited_on) : '', i.kind, i.zone, i.duration, i.cost].filter(Boolean).map(esc).join(' · ') : [i.zone, i.cuisine].filter(Boolean).map(esc).join(' · ')}${(pa ? i.comment || i.notes : i.notes) ? ' — ' + esc(pa ? i.comment || i.notes : i.notes) : ''}</div>
+    </div>
+    <div class="stats" style="grid-template-columns:repeat(${i.status === 'v' ? people.length + 2 : 1},minmax(0,1fr))">
+      <span class="who" title="Nota en Google Maps"><span class="lbl">Google</span><span class="g">${i.g ? '⭐ ' + Number(i.g).toFixed(1) : '—'}${i.g_count ? ` <small>(${i.g_count.toLocaleString('es')})</small>` : ''}</span></span>
+      ${i.status === 'v' ? people.map(p => `<span class="who"><span class="lbl">${esc(p.name)}</span>${stars(rs.find(r => r.user_id === p.id)?.stars || 0, i.id, p.id === me.id)}</span>`).join('') +
+        `<span class="who" title="Promedio nuestro"><span class="lbl">Promedio</span><span class="g">${a ? a.toFixed(1) : '—'}</span></span>` : ''}
+    </div>
+    <div class="acts">
+      ${i.status === 'p' ? `<button data-a="visit" data-id="${i.id}" title="Ya fuimos">✅</button>` : ''}
+      <a href="${dirUrl(i)}" target="_blank" rel="noopener" title="Cómo llegar">🧭</a>
+      <button data-a="photos" data-id="${i.id}" title="Fotos">📷</button>
+      <button data-a="edit" data-id="${i.id}" title="Editar">✏️</button>
+      <button data-a="del" data-id="${i.id}" title="Borrar">🗑️</button>
+    </div>
+  </div>`;
+  }).join('') : '<div class="empty">Nada por aquí todavía.</div>';
+}
+
+document.addEventListener('click', async e => {
+  const t = e.target, id = t.dataset.id;
+  if (t.dataset.rid) {
+    const rid = t.dataset.rid, v = +t.dataset.v;
+    const cur = RT.find(r => r.restaurant_id === rid && r.user_id === me.id)?.stars;
+    if (cur === v) await sb.from('ratings').delete().eq('restaurant_id', rid).eq('user_id', me.id);
+    else await sb.from('ratings').upsert({restaurant_id: rid, user_id: me.id, stars: v});
+    return refresh();
+  }
+  if (t.dataset.a === 'del' && confirm('¿Borrar?')) { await sb.from('restaurants').delete().eq('id', id); refresh(); }
+  if (t.dataset.a === 'visit') { await sb.from('restaurants').update(visitPatch(R.find(x => x.id === id))).eq('id', id); refresh(); }
+  if (t.dataset.a === 'unvisit') { await sb.from('restaurants').update({status: 'p'}).eq('id', id); refresh(); }
+  if (t.dataset.a === 'edit') openDlg(id);
+  if (t.dataset.a === 'photos') showPhotos(id);
+});
+
+function openDlg(id) {
+  editId = id || null; linkBias = null; const f = $('#f'); f.reset();
+  $('#uhint').textContent = '';
+  const it = id ? R.find(i => i.id === id) : {status: tab, category: cat};
+  const pa = (it.category || 'comer') === 'paseo';
+  $('#dt').textContent = (id ? 'Editar ' : 'Agregar ') + (pa ? 'paseo' : 'restaurante');
+  $('#cwrap').hidden = pa; $('#kwrap').hidden = !pa; $('#pextra').hidden = !pa;
+  for (const k of ['name', 'zone', 'cuisine', 'kind', 'url', 'g', 'status', 'notes', 'visited_on', 'duration', 'cost', 'comment']) f.elements[k].value = it[k] ?? '';
+  $('#dlg').showModal();
+}
+$('#add').onclick = () => openDlg();
+$('#cancel').onclick = () => $('#dlg').close();
+
+function parseMapsUrl(u) {
+  try {
+    const x = new URL(u);
+    const short = /(^|\.)goo\.gl$/.test(x.hostname);
+    if (!short && !/(^|\.)google\.[a-z.]+$/.test(x.hostname)) return null;
+    const m = decodeURIComponent(x.pathname).match(/\/place\/([^/]+)/);
+    const c = u.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/) || u.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
+    return {short, name: m ? m[1].replace(/\+/g, ' ') : null, lat: c ? +c[1] : null, lng: c ? +c[2] : null};
+  } catch (e) { return null; }
+}
+$('#f').elements.url.addEventListener('input', e => {
+  const r = parseMapsUrl(e.target.value.trim()), f = $('#f').elements;
+  linkBias = r && r.lat != null ? {lat: r.lat, lng: r.lng} : null;
+  if (!e.target.value.trim()) { $('#uhint').textContent = ''; return; }
+  if (!r) { $('#uhint').textContent = 'No parece un enlace de Google Maps.'; return; }
+  if (r.name) { if (!f.name.value.trim()) f.name.value = r.name; $('#uhint').textContent = 'Detecté: ' + r.name + '. Al guardar completo la nota, fotos y ubicación.'; }
+  else $('#uhint').textContent = 'Enlace corto: escribe el nombre del lugar y completo el resto al guardar.';
+});
+
+const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').trim();
+const GH = {'X-Goog-Api-Key': GOOGLE_KEY};
+async function lookupPlace(name, bias) {
+  const r = await fetch('https://places.googleapis.com/v1/places:searchText', {method: 'POST',
+    headers: {...GH, 'Content-Type': 'application/json', 'X-Goog-FieldMask': 'places.id,places.displayName,places.rating,places.userRatingCount,places.location,places.formattedAddress,places.primaryTypeDisplayName'},
+    body: JSON.stringify({textQuery: name, languageCode: 'es', maxResultCount: 1,
+      locationBias: {circle: {center: {latitude: bias?.lat ?? -33.45, longitude: bias?.lng ?? -70.65}, radius: bias ? 5000 : 30000}}})});
+  const j = await r.json(); if (!r.ok) throw new Error(j.error?.message || r.status);
+  const pl = (j.places || [])[0];
+  if (!pl || !norm(pl.displayName?.text).includes(norm(name).split(' ')[0])) return null;
+  return pl;
+}
+
+$('#f').addEventListener('submit', async () => {
+  const f = $('#f').elements, d = {};
+  const pa = editId ? (R.find(i => i.id === editId)?.category === 'paseo') : cat === 'paseo';
+  for (const k of ['name', 'zone', 'url', 'notes', 'status', ...(pa ? ['kind', 'duration', 'cost', 'comment'] : ['cuisine'])]) d[k] = f[k].value.trim() || (k === 'status' ? 'p' : null);
+  if (pa) { d.visited_on = f.visited_on.value || null; if (d.status === 'v' && !d.visited_on) d.visited_on = new Date().toISOString().slice(0, 10); }
+  if (!editId) d.category = cat;
+  d.g = f.g.value ? Math.min(5, Math.max(0, +f.g.value)) : null;
+  if (!d.name) return;
+  const cur = editId ? R.find(i => i.id === editId) : null;
+  if (gEnabled && !cur?.place_id) {
+    try {
+      const pl = await lookupPlace(d.name + (d.zone ? ' ' + d.zone : ''), linkBias);
+      if (pl) {
+        d.place_id = pl.id; d.g_count = pl.userRatingCount ?? null; d.g_updated = new Date().toISOString();
+        if (d.g == null) d.g = pl.rating ?? null;
+        d.lat = pl.location?.latitude ?? null; d.lng = pl.location?.longitude ?? null;
+        if (!d.zone) d.zone = zoneFrom(pl.formattedAddress);
+        if (pa) { if (!d.kind) d.kind = pl.primaryTypeDisplayName?.text ?? null; } else if (!d.cuisine) d.cuisine = pl.primaryTypeDisplayName?.text ?? null;
+        if (!d.url) d.url = 'https://www.google.com/maps/place/?q=place_id:' + pl.id;
+      }
+    } catch (e) { console.warn('Google:', e.message); }
+  }
+  const {error} = editId ? await sb.from('restaurants').update(d).eq('id', editId) : await sb.from('restaurants').insert(d);
+  if (error) alert('No se pudo guardar: ' + error.message);
+  refresh();
+});
+
+async function showPhotos(id) {
+  const i = R.find(x => x.id === id);
+  if (!gEnabled || !i.place_id) {
+    const q = encodeURIComponent(i.name + ' ' + (i.zone || 'Santiago, Chile'));
+    $('#ptitle').textContent = i.name;
+    $('#pgrid').innerHTML = '<iframe src="https://maps.google.com/maps?q=' + q + '&hl=es&z=16&output=embed" style="width:100%;height:60vh;border:0;border-radius:8px;grid-column:1/-1" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>';
+    $('#pmaps').href = i.url || 'https://www.google.com/maps/search/?api=1&query=' + q;
+    $('#pdlg').showModal(); return;
+  }
+  $('#ptitle').textContent = i.name; $('#pgrid').innerHTML = '<div class="mut">Cargando…</div>';
+  $('#pmaps').href = i.url || '#'; $('#pdlg').showModal();
+  try {
+    const r = await fetch('https://places.googleapis.com/v1/places/' + i.place_id, {headers: {...GH, 'X-Goog-FieldMask': 'photos,googleMapsUri'}});
+    const j = await r.json(); if (!r.ok) throw new Error(j.error?.message || r.status);
+    const ph = (j.photos || []).slice(0, 10);
+    $('#pgrid').innerHTML = ph.length ? ph.map(p => '<figure><img loading="lazy" src="https://places.googleapis.com/v1/' + p.name + '/media?maxWidthPx=800&key=' + GOOGLE_KEY + '"><figcaption class="mut">' + esc((p.authorAttributions || [])[0]?.displayName || '') + '</figcaption></figure>').join('') : '<div class="mut">Sin fotos</div>';
+    if (j.googleMapsUri) $('#pmaps').href = j.googleMapsUri;
+  } catch (e) { $('#pgrid').innerHTML = '<div class="err">' + esc(e.message) + '</div>'; }
+}
+
+$('#gupd').onclick = async () => {
+  if (!gEnabled) return alert('Falta configurar GOOGLE_KEY en index.html');
+  const old = Date.now() - 30 * 864e5;
+  const todo = R.filter(i => !i.place_id || !i.g_updated || i.lat == null || !i[i.category === 'paseo' ? 'kind' : 'cuisine'] || !i.zone || new Date(i.g_updated) < old);
+  if (!todo.length) return alert('Todo está al día');
+  if (!confirm('¿Buscar nota y ubicación de Google de ' + todo.length + ' lugares?')) return;
+  const btn = $('#gupd'); let ok = 0, miss = 0;
+  for (const [n, i] of todo.entries()) {
+    btn.textContent = 'Actualizando ' + (n + 1) + '/' + todo.length + '…';
+    try {
+      let pl;
+      if (i.place_id) {
+        const r = await fetch('https://places.googleapis.com/v1/places/' + i.place_id, {headers: {...GH, 'X-Goog-FieldMask': 'id,rating,userRatingCount,location,primaryTypeDisplayName,formattedAddress'}});
+        pl = await r.json(); if (!r.ok) throw new Error(pl.error?.message || r.status);
+      } else {
+        pl = await lookupPlace(i.name + ' ' + (i.zone || ''), null);
+        if (!pl) { miss++; continue; }
+      }
+      const {error} = await sb.from('restaurants').update({place_id: pl.id, g: pl.rating ?? i.g ?? null, g_count: pl.userRatingCount ?? null,
+        [i.category === 'paseo' ? 'kind' : 'cuisine']: i[i.category === 'paseo' ? 'kind' : 'cuisine'] || pl.primaryTypeDisplayName?.text || null, zone: i.zone || zoneFrom(pl.formattedAddress),
+        lat: pl.location?.latitude ?? null, lng: pl.location?.longitude ?? null, g_updated: new Date().toISOString()}).eq('id', i.id);
+      if (error) throw new Error(error.message);
+      ok++;
+    } catch (e) { alert('Error: ' + e.message); break; }
+    await new Promise(r => setTimeout(r, 120));
+  }
+  btn.textContent = '🔄 Actualizar notas de Google';
+  alert(ok + ' actualizados, ' + miss + ' sin coincidencia segura');
+  refresh();
+};
+
+function renderMap(items) {
+  if (typeof maplibregl === 'undefined') { $('#map').innerHTML = '<div class="empty">No se pudo cargar el mapa</div>'; return; }
+  if (!map) {
+    const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+    map = new maplibregl.Map({container: 'map', style: 'https://tiles.openfreemap.org/styles/' + (dark ? 'dark' : 'positron'), center: [-70.63, -33.44], zoom: 11});
+    map.addControl(new maplibregl.NavigationControl({showCompass: false}), 'top-right');
+  }
+  map.resize();
+  mapMarkers.forEach(m => m.remove()); mapMarkers = [];
+  const withLoc = items.filter(i => i.lat != null && i.lng != null), bounds = new maplibregl.LngLatBounds();
+  withLoc.forEach(i => {
+    const a = avg(i.id), el = document.createElement('div');
+    el.style.cssText = 'width:16px;height:16px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.4);cursor:pointer;background:' + (cat === 'paseo' ? (i.status === 'v' ? '#1f8a8a' : '#7a62c9') : (i.status === 'v' ? '#2e9e5b' : '#c8553d'));
+    const popup = new maplibregl.Popup({offset: 12}).setHTML('<b>' + esc(i.name) + '</b><br>' + esc(i.zone || '') +
+      (i.visited_on ? '<br>' + fmtDate(i.visited_on) : '') + '<br>Google: ' + (i.g ? '⭐ ' + Number(i.g).toFixed(1) : '—') + (i.status === 'v' ? ' · Nosotros: ' + (a ? a.toFixed(1) : '—') : '') +
+      '<br><div style="display:flex;gap:6px;margin-top:6px;align-items:center"><button data-a="photos" data-id="' + i.id + '">📷 Fotos</button><a href="' + dirUrl(i) + '" target="_blank" rel="noopener">🧭 Cómo llegar</a>' +
+      (i.status === 'p' ? '<button data-a="visit" data-id="' + i.id + '">✅ Ya fuimos</button>' : '<button data-a="unvisit" data-id="' + i.id + '">↩ Por visitar</button>') + '</div>');
+    mapMarkers.push(new maplibregl.Marker({element: el}).setLngLat([i.lng, i.lat]).setPopup(popup).addTo(map));
+    bounds.extend([i.lng, i.lat]);
+  });
+  if (withLoc.length && needFit) { map.fitBounds(bounds, {padding: 40, maxZoom: 15, duration: 0}); needFit = false; }
+  const miss = items.length - withLoc.length;
+  $('#mapnote').innerHTML = (cat === 'paseo' ? '🔵 Ya fuimos · 🟣 Por ir' : '🟢 Visitado · 🟠 Por visitar') + (miss ? ' · ' + miss + ' sin ubicación (pulsa "Actualizar notas de Google")' : '');
+}
+$('#vmap').onclick = () => { view = view === 'map' ? 'list' : 'map'; needFit = true; render(); };
+$('#t-v').onclick = () => { tab = 'v'; render(); };
+$('#t-p').onclick = () => { tab = 'p'; render(); };
+$('#q').oninput = () => { needFit = true; render(); }; $('#sort').onchange = render;
+
+</script>
+</body>
+</html>

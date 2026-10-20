@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>¿Dónde comemos hoy?</title>
+<title>¿Y hoy qué hacemos?</title>
 <link rel="icon" href="favicon.ico" sizes="any">
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -101,6 +101,15 @@ html,body{overflow-x:hidden}
 #pgrid img{width:100%;border-radius:8px;display:block}
 #pgrid figure{margin:0}#pgrid figcaption{font-size:.7rem}
 #pdlg{width:min(96vw,760px)}
+.hero.paseo{background:radial-gradient(90% 120% at 90% -10%,rgba(190,240,230,.55) 0%,transparent 55%),radial-gradient(60% 90% at 0% 110%,rgba(10,50,70,.55) 0%,transparent 60%),linear-gradient(120deg,#1b6f86 0%,#2a8f8a 55%,#5bb38a 100%);box-shadow:0 10px 30px -12px rgba(20,90,100,.55)}
+@media(prefers-color-scheme:dark){.hero.paseo{background:radial-gradient(90% 120% at 90% -10%,rgba(120,220,200,.25) 0%,transparent 55%),radial-gradient(60% 90% at 0% 110%,rgba(0,0,0,.45) 0%,transparent 60%),linear-gradient(120deg,#103f4d 0%,#175e5d 60%,#2b6e53 100%)}}
+.hero h1{max-width:80%}
+.seg{display:flex;gap:6px;background:var(--card);border:1px solid var(--ln);border-radius:14px;padding:4px;margin-bottom:12px}
+.seg button{flex:1;border:0;background:transparent;border-radius:10px;padding:10px 8px;font-weight:600;font-size:1rem}
+.seg button.on{background:var(--ac);color:#fff}
+.seg.paseo button.on{background:#1f8a8a}
+.mh{font:600 .8rem system-ui;letter-spacing:.08em;text-transform:uppercase;color:var(--mut);margin:14px 2px 6px}
+.tag{display:inline-block;font-size:.68rem;padding:1px 7px;border-radius:99px;background:var(--ln);color:var(--tx);margin-right:4px}
 </style>
 </head>
 <body>
@@ -111,7 +120,7 @@ html,body{overflow-x:hidden}
 
 <!-- Login -->
 <form id="login" class="login" hidden>
-  <h1>🍽️ ¿Dónde comemos hoy?</h1>
+  <h1>🧭 ¿Y hoy qué hacemos?</h1>
   <label>Correo</label><input name="email" type="email" required autocomplete="email">
   <label>Contraseña</label><input name="pw" type="password" required autocomplete="current-password">
   <label style="display:flex;gap:8px;align-items:center;margin-top:12px;cursor:pointer"><input type="checkbox" name="keep" checked style="width:auto;margin:0"> No cerrar mi sesión</label>
@@ -122,7 +131,8 @@ html,body{overflow-x:hidden}
 
 <!-- App -->
 <div id="app" hidden>
-<header class="hero"><div class="plate"><span>🍝</span></div><div class="hero-in"><span class="eyebrow" id="eyebrow">Nuestra lista</span><h1>¿Dónde <em>comemos</em> hoy?</h1><div class="chips" id="sub"></div></div></header>
+<header class="hero" id="hero"><div class="plate"><span id="plate">🍝</span></div><div class="hero-in"><span class="eyebrow" id="eyebrow">Nuestra lista</span><h1>¿Y hoy qué <em>hacemos</em>?</h1><div class="chips" id="sub"></div></div></header>
+<div class="seg" id="seg"><button id="s-comer" class="on">🍽️ Comer</button><button id="s-paseo">🌳 Paseos</button></div>
 <div class="bar tabs" id="tabs">
   <button id="t-v" class="on">✅ Visitados <span id="c-v"></span></button>
   <button id="t-p">📌 Por visitar <span id="c-p"></span></button>
@@ -132,7 +142,8 @@ html,body{overflow-x:hidden}
   <select id="sort">
     <option value="avg">Mejor nuestra nota</option>
     <option value="g">Mejor nota Google</option>
-    <option value="new">Más recientes</option>
+    <option value="date" id="o-date" hidden>Más recientes (fecha)</option>
+    <option value="new">Agregados recién</option>
     <option value="az">A–Z</option>
   </select>
   <button id="vmap">🗺️ Mapa</button>
@@ -163,10 +174,17 @@ html,body{overflow-x:hidden}
     <div class="hint" id="uhint"></div>
     <label>Nombre *</label><input name="name" required>
     <label>Zona / ciudad</label><input name="zone">
-    <label>Tipo de cocina</label><input name="cuisine">
+    <div id="cwrap"><label>Tipo de cocina</label><input name="cuisine"></div>
+    <div id="kwrap" hidden><label>Tipo de paseo</label><input name="kind" list="kinds" placeholder="parque, mirador, museo…"><datalist id="kinds"><option>Parque</option><option>Mirador</option><option>Museo</option><option>Playa</option><option>Sendero</option><option>Pueblo</option><option>Evento</option><option>Otro</option></datalist></div>
     <label>Nota en Google Maps (0–5)</label><input name="g" type="number" min="0" max="5" step="0.1">
     <label>Estado</label>
     <select name="status"><option value="p">Por visitar</option><option value="v">Visitado</option></select>
+    <div id="pextra" hidden>
+      <label>Fecha en que fuimos</label><input name="visited_on" type="date">
+      <label>Duración</label><select name="duration"><option value="">—</option><option>1 hora</option><option>Medio día</option><option>Día completo</option><option>Fin de semana</option></select>
+      <label>Costo</label><select name="cost"><option value="">—</option><option>Gratis</option><option>Pago</option></select>
+      <label>Recuerdo / comentario</label><textarea name="comment" rows="2" placeholder="Qué nos gustó, qué repetiríamos…"></textarea>
+    </div>
     <label>Notas</label><textarea name="notes" rows="2"></textarea>
     <div class="bar" style="margin-top:12px;justify-content:flex-end">
       <button type="button" id="cancel">Cancelar</button>
@@ -218,6 +236,9 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt
 const AUTH_TYPE = new URLSearchParams(location.hash.replace(/^#/, '')).get('type');
 let needPwd = ['invite', 'recovery'].includes(AUTH_TYPE);
 const gEnabled = !GOOGLE_KEY.startsWith('PEGA');
+let cat = 'comer'; try { cat = localStorage.getItem('cat') === 'paseo' ? 'paseo' : 'comer'; } catch (e) {}
+const RC = () => R.filter(i => (i.category || 'comer') === cat);
+const FK = () => cat === 'paseo' ? 'kind' : 'cuisine';
 let fCui = '', fZone = '', fMin = 0, lastRand = null;
 let sb, me = null, lastId = undefined, R = [], RT = [], P = [], tab = 'v', view = 'list', editId = null, chan = null, linkBias = null, map = null, mapMarkers = [], needFit = true;
 
@@ -325,17 +346,17 @@ function dirUrl(i) {
 }
 function matches(i) {
   const q = $('#q').value.toLowerCase();
-  return [i.name, i.zone, i.cuisine, i.notes].join(' ').toLowerCase().includes(q)
-    && (!fCui || i.cuisine === fCui) && (!fZone || i.zone === fZone) && (!fMin || (i.g || 0) >= fMin);
+  return [i.name, i.zone, i[FK()], i.notes, i.comment].join(' ').toLowerCase().includes(q)
+    && (!fCui || i[FK()] === fCui) && (!fZone || i.zone === fZone) && (!fMin || (i.g || 0) >= fMin);
 }
 function fillFilters() {
-  const uniq = k => [...new Set(R.map(i => i[k]).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es'));
+  const uniq = k => [...new Set(RC().map(i => i[k]).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es'));
   const fill = (sel, vals, cur, label) => {
     if (cur && !vals.includes(cur)) cur = '';
     sel.innerHTML = '<option value="">' + label + ': todas</option>' + vals.map(v => '<option value="' + esc(v) + '"' + (v === cur ? ' selected' : '') + '>' + esc(v) + '</option>').join('');
     return cur;
   };
-  fCui = fill($('#f-cui'), uniq('cuisine'), fCui, 'Cocina');
+  fCui = fill($('#f-cui'), uniq(FK()), fCui, cat === 'paseo' ? 'Tipo' : 'Cocina');
   fZone = fill($('#f-zone'), uniq('zone'), fZone, 'Zona');
   $('#f-min').value = String(fMin);
   $('#f-clear').hidden = !(fCui || fZone || fMin);
@@ -345,44 +366,67 @@ $('#f-zone').onchange = e => { fZone = e.target.value; needFit = true; render();
 $('#f-min').onchange = e => { fMin = +e.target.value; needFit = true; render(); };
 $('#f-clear').onclick = () => { fCui = ''; fZone = ''; fMin = 0; needFit = true; render(); };
 function pickRandom() {
-  const pool = R.filter(i => i.status === 'p' && matches(i));
+  const pool = RC().filter(i => i.status === 'p' && matches(i));
   if (!pool.length) { alert('No hay lugares por visitar con esos filtros.'); return; }
   let c; do { c = pool[Math.floor(Math.random() * pool.length)]; } while (pool.length > 1 && c.id === lastRand);
   lastRand = c.id;
   $('#rtitle').textContent = c.name;
-  $('#rinfo').textContent = [c.zone, c.cuisine].filter(Boolean).join(' · ') + (c.g ? ' · ⭐ ' + Number(c.g).toFixed(1) : '');
+  $('#rinfo').textContent = [c.zone, c[FK()]].filter(Boolean).join(' · ') + (c.g ? ' · ⭐ ' + Number(c.g).toFixed(1) : '');
   $('#rgo').href = dirUrl(c);
-  $('#rvisit').onclick = async () => { await sb.from('restaurants').update({status: 'v'}).eq('id', c.id); $('#rdlg').close(); refresh(); };
+  $('#rvisit').onclick = async () => { await sb.from('restaurants').update(visitPatch(c)).eq('id', c.id); $('#rdlg').close(); refresh(); };
   if (!$('#rdlg').open) $('#rdlg').showModal();
 }
 $('#rand').onclick = pickRandom;
 $('#ragain').onclick = pickRandom;
 
+const visitPatch = i => i.category === 'paseo' && !i.visited_on ? {status: 'v', visited_on: new Date().toISOString().slice(0, 10)} : {status: 'v'};
+const MES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+const fmtDate = d => { if (!d) return ''; const [y, m, dd] = d.split('-'); return +dd + ' ' + MES[m - 1].slice(0, 3) + ' ' + y; };
+function setCat(c) {
+  cat = c; try { localStorage.setItem('cat', c); } catch (e) {}
+  fCui = ''; fZone = ''; fMin = 0; needFit = true; tab = 'v';
+  $('#sort').value = c === 'paseo' ? 'date' : 'avg';
+  render();
+}
+$('#s-comer').onclick = () => setCat('comer');
+$('#s-paseo').onclick = () => setCat('paseo');
 function render() {
   if (!me) return;
+  const pa = cat === 'paseo', RL = RC();
+  $('#hero').classList.toggle('paseo', pa); $('#seg').classList.toggle('paseo', pa);
+  $('#s-comer').classList.toggle('on', !pa); $('#s-paseo').classList.toggle('on', pa);
+  $('#plate').textContent = pa ? '🧭' : '🍝';
+  $('#o-date').hidden = !pa;
+  if (!pa && $('#sort').value === 'date') $('#sort').value = 'avg';
+  $('#q').placeholder = pa ? 'Buscar paseo, zona, tipo…' : 'Buscar nombre, zona, cocina…';
+  $('#t-v').innerHTML = (pa ? '🥾 Ya fuimos ' : '✅ Visitados ') + '<span id="c-v"></span>';
+  $('#t-p').innerHTML = (pa ? '📌 Por ir ' : '📌 Por visitar ') + '<span id="c-p"></span>';
+  $('#add').textContent = '+ Agregar';
   fillFilters();
-  $('#c-v').textContent = '(' + R.filter(i => i.status === 'v').length + ')';
-  $('#c-p').textContent = '(' + R.filter(i => i.status === 'p').length + ')';
-  const nv = R.filter(i => i.status === 'v').length, np = R.filter(i => i.status === 'p').length;
-  $('#sub').innerHTML = `<span class="chip">✅ <b>${nv}</b> visitados</span><span class="chip">📌 <b>${np}</b> por descubrir</span>`;
-  const h = new Date().getHours(); $('#eyebrow').textContent = h < 12 ? 'Buen día · desayuno?' : h < 16 ? 'Hora de almuerzo' : h < 20 ? 'Once o cena?' : 'Cena de hoy';
+  const nv = RL.filter(i => i.status === 'v').length, np = RL.filter(i => i.status === 'p').length;
+  $('#c-v').textContent = '(' + nv + ')'; $('#c-p').textContent = '(' + np + ')';
+  $('#sub').innerHTML = pa ? `<span class="chip">🥾 <b>${nv}</b> paseos hechos</span><span class="chip">📌 <b>${np}</b> por conocer</span>` : `<span class="chip">✅ <b>${nv}</b> visitados</span><span class="chip">📌 <b>${np}</b> por descubrir</span>`;
+  const h = new Date().getHours(); $('#eyebrow').textContent = pa ? (h < 12 ? 'Buen día · salida?' : h < 18 ? 'Tarde de paseo' : 'Plan de noche') : h < 12 ? 'Buen día · desayuno?' : h < 16 ? 'Hora de almuerzo' : h < 20 ? 'Once o cena?' : 'Cena de hoy';
   $('#t-v').classList.toggle('on', tab === 'v'); $('#t-p').classList.toggle('on', tab === 'p');
   const q = $('#q').value.toLowerCase(), so = $('#sort').value;
   $('#tabs').hidden = view === 'map'; $('#list').hidden = view === 'map'; $('#mapwrap').hidden = view !== 'map';
   $('#vmap').textContent = view === 'map' ? '📋 Lista' : '🗺️ Mapa';
-  if (view === 'map') return renderMap(R.filter(matches));
-  const l = R.filter(i => i.status === tab && matches(i));
-  l.sort((a, b) => so === 'avg' ? avg(b.id) - avg(a.id) : so === 'g' ? (b.g || 0) - (a.g || 0) : so === 'az' ? a.name.localeCompare(b.name) : b.created_at.localeCompare(a.created_at));
+  if (view === 'map') return renderMap(RL.filter(matches));
+  const l = RL.filter(i => i.status === tab && matches(i));
+  l.sort((a, b) => so === 'date' ? (b.visited_on || b.created_at.slice(0, 10)).localeCompare(a.visited_on || a.created_at.slice(0, 10)) : so === 'avg' ? avg(b.id) - avg(a.id) : so === 'g' ? (b.g || 0) - (a.g || 0) : so === 'az' ? a.name.localeCompare(b.name) : b.created_at.localeCompare(a.created_at));
   // siempre mostrar a los dos (o los que existan), yo primero
   const people = [...P].sort((a, b) => (b.id === me.id) - (a.id === me.id));
   if (!people.find(p => p.id === me.id)) people.unshift({id: me.id, name: 'Yo'});
+  let lastMonth = '';
   $('#list').innerHTML = l.length ? l.map(i => {
     const rs = ratingsOf(i.id), a = avg(i.id);
-    return `
+    let head = '';
+    if (pa && tab === 'v' && so === 'date') { const m = i.visited_on ? MES[+i.visited_on.slice(5, 7) - 1] + ' ' + i.visited_on.slice(0, 4) : 'Sin fecha'; if (m !== lastMonth) { head = '<div class="mh">' + m + '</div>'; lastMonth = m; } }
+    return head + `
   <div class="card">
     <div class="main">
       <h3>${i.url ? `<a href="${esc(i.url)}" target="_blank" rel="noopener" style="color:inherit">${esc(i.name)}</a>` : esc(i.name)}</h3>
-      <div class="mut sub">${[i.zone, i.cuisine].filter(Boolean).map(esc).join(' · ')}${i.notes ? ' — ' + esc(i.notes) : ''}</div>
+      <div class="mut sub">${pa ? [i.visited_on ? fmtDate(i.visited_on) : '', i.kind, i.zone, i.duration, i.cost].filter(Boolean).map(esc).join(' · ') : [i.zone, i.cuisine].filter(Boolean).map(esc).join(' · ')}${(pa ? i.comment || i.notes : i.notes) ? ' — ' + esc(pa ? i.comment || i.notes : i.notes) : ''}</div>
     </div>
     <div class="stats" style="grid-template-columns:repeat(${i.status === 'v' ? people.length + 2 : 1},minmax(0,1fr))">
       <span class="who" title="Nota en Google Maps"><span class="lbl">Google</span><span class="g">${i.g ? '⭐ ' + Number(i.g).toFixed(1) : '—'}${i.g_count ? ` <small>(${i.g_count.toLocaleString('es')})</small>` : ''}</span></span>
@@ -410,7 +454,7 @@ document.addEventListener('click', async e => {
     return refresh();
   }
   if (t.dataset.a === 'del' && confirm('¿Borrar?')) { await sb.from('restaurants').delete().eq('id', id); refresh(); }
-  if (t.dataset.a === 'visit') { await sb.from('restaurants').update({status: 'v'}).eq('id', id); refresh(); }
+  if (t.dataset.a === 'visit') { await sb.from('restaurants').update(visitPatch(R.find(x => x.id === id))).eq('id', id); refresh(); }
   if (t.dataset.a === 'unvisit') { await sb.from('restaurants').update({status: 'p'}).eq('id', id); refresh(); }
   if (t.dataset.a === 'edit') openDlg(id);
   if (t.dataset.a === 'photos') showPhotos(id);
@@ -419,9 +463,11 @@ document.addEventListener('click', async e => {
 function openDlg(id) {
   editId = id || null; linkBias = null; const f = $('#f'); f.reset();
   $('#uhint').textContent = '';
-  $('#dt').textContent = id ? 'Editar restaurante' : 'Agregar restaurante';
-  const it = id ? R.find(i => i.id === id) : {status: tab};
-  for (const k of ['name', 'zone', 'cuisine', 'url', 'g', 'status', 'notes']) f.elements[k].value = it[k] ?? '';
+  const it = id ? R.find(i => i.id === id) : {status: tab, category: cat};
+  const pa = (it.category || 'comer') === 'paseo';
+  $('#dt').textContent = (id ? 'Editar ' : 'Agregar ') + (pa ? 'paseo' : 'restaurante');
+  $('#cwrap').hidden = pa; $('#kwrap').hidden = !pa; $('#pextra').hidden = !pa;
+  for (const k of ['name', 'zone', 'cuisine', 'kind', 'url', 'g', 'status', 'notes', 'visited_on', 'duration', 'cost', 'comment']) f.elements[k].value = it[k] ?? '';
   $('#dlg').showModal();
 }
 $('#add').onclick = () => openDlg();
@@ -461,7 +507,10 @@ async function lookupPlace(name, bias) {
 
 $('#f').addEventListener('submit', async () => {
   const f = $('#f').elements, d = {};
-  for (const k of ['name', 'zone', 'cuisine', 'url', 'notes', 'status']) d[k] = f[k].value.trim() || (k === 'status' ? 'p' : null);
+  const pa = editId ? (R.find(i => i.id === editId)?.category === 'paseo') : cat === 'paseo';
+  for (const k of ['name', 'zone', 'url', 'notes', 'status', ...(pa ? ['kind', 'duration', 'cost', 'comment'] : ['cuisine'])]) d[k] = f[k].value.trim() || (k === 'status' ? 'p' : null);
+  if (pa) { d.visited_on = f.visited_on.value || null; if (d.status === 'v' && !d.visited_on) d.visited_on = new Date().toISOString().slice(0, 10); }
+  if (!editId) d.category = cat;
   d.g = f.g.value ? Math.min(5, Math.max(0, +f.g.value)) : null;
   if (!d.name) return;
   const cur = editId ? R.find(i => i.id === editId) : null;
@@ -473,7 +522,7 @@ $('#f').addEventListener('submit', async () => {
         if (d.g == null) d.g = pl.rating ?? null;
         d.lat = pl.location?.latitude ?? null; d.lng = pl.location?.longitude ?? null;
         if (!d.zone) d.zone = zoneFrom(pl.formattedAddress);
-        if (!d.cuisine) d.cuisine = pl.primaryTypeDisplayName?.text ?? null;
+        if (pa) { if (!d.kind) d.kind = pl.primaryTypeDisplayName?.text ?? null; } else if (!d.cuisine) d.cuisine = pl.primaryTypeDisplayName?.text ?? null;
         if (!d.url) d.url = 'https://www.google.com/maps/place/?q=place_id:' + pl.id;
       }
     } catch (e) { console.warn('Google:', e.message); }
@@ -506,7 +555,7 @@ async function showPhotos(id) {
 $('#gupd').onclick = async () => {
   if (!gEnabled) return alert('Falta configurar GOOGLE_KEY en index.html');
   const old = Date.now() - 30 * 864e5;
-  const todo = R.filter(i => !i.place_id || !i.g_updated || i.lat == null || !i.cuisine || !i.zone || new Date(i.g_updated) < old);
+  const todo = R.filter(i => !i.place_id || !i.g_updated || i.lat == null || !i[i.category === 'paseo' ? 'kind' : 'cuisine'] || !i.zone || new Date(i.g_updated) < old);
   if (!todo.length) return alert('Todo está al día');
   if (!confirm('¿Buscar nota y ubicación de Google de ' + todo.length + ' lugares?')) return;
   const btn = $('#gupd'); let ok = 0, miss = 0;
@@ -522,7 +571,7 @@ $('#gupd').onclick = async () => {
         if (!pl) { miss++; continue; }
       }
       const {error} = await sb.from('restaurants').update({place_id: pl.id, g: pl.rating ?? i.g ?? null, g_count: pl.userRatingCount ?? null,
-        cuisine: i.cuisine || pl.primaryTypeDisplayName?.text || null, zone: i.zone || zoneFrom(pl.formattedAddress),
+        [i.category === 'paseo' ? 'kind' : 'cuisine']: i[i.category === 'paseo' ? 'kind' : 'cuisine'] || pl.primaryTypeDisplayName?.text || null, zone: i.zone || zoneFrom(pl.formattedAddress),
         lat: pl.location?.latitude ?? null, lng: pl.location?.longitude ?? null, g_updated: new Date().toISOString()}).eq('id', i.id);
       if (error) throw new Error(error.message);
       ok++;
@@ -546,9 +595,9 @@ function renderMap(items) {
   const withLoc = items.filter(i => i.lat != null && i.lng != null), bounds = new maplibregl.LngLatBounds();
   withLoc.forEach(i => {
     const a = avg(i.id), el = document.createElement('div');
-    el.style.cssText = 'width:16px;height:16px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.4);cursor:pointer;background:' + (i.status === 'v' ? '#2e9e5b' : '#c8553d');
+    el.style.cssText = 'width:16px;height:16px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.4);cursor:pointer;background:' + (cat === 'paseo' ? (i.status === 'v' ? '#1f8a8a' : '#7a62c9') : (i.status === 'v' ? '#2e9e5b' : '#c8553d'));
     const popup = new maplibregl.Popup({offset: 12}).setHTML('<b>' + esc(i.name) + '</b><br>' + esc(i.zone || '') +
-      '<br>Google: ' + (i.g ? '⭐ ' + Number(i.g).toFixed(1) : '—') + (i.status === 'v' ? ' · Nosotros: ' + (a ? a.toFixed(1) : '—') : '') +
+      (i.visited_on ? '<br>' + fmtDate(i.visited_on) : '') + '<br>Google: ' + (i.g ? '⭐ ' + Number(i.g).toFixed(1) : '—') + (i.status === 'v' ? ' · Nosotros: ' + (a ? a.toFixed(1) : '—') : '') +
       '<br><div style="display:flex;gap:6px;margin-top:6px;align-items:center"><button data-a="photos" data-id="' + i.id + '">📷 Fotos</button><a href="' + dirUrl(i) + '" target="_blank" rel="noopener">🧭 Cómo llegar</a>' +
       (i.status === 'p' ? '<button data-a="visit" data-id="' + i.id + '">✅ Ya fuimos</button>' : '<button data-a="unvisit" data-id="' + i.id + '">↩ Por visitar</button>') + '</div>');
     mapMarkers.push(new maplibregl.Marker({element: el}).setLngLat([i.lng, i.lat]).setPopup(popup).addTo(map));
@@ -556,7 +605,7 @@ function renderMap(items) {
   });
   if (withLoc.length && needFit) { map.fitBounds(bounds, {padding: 40, maxZoom: 15, duration: 0}); needFit = false; }
   const miss = items.length - withLoc.length;
-  $('#mapnote').innerHTML = '🟢 Visitado · 🟠 Por visitar' + (miss ? ' · ' + miss + ' sin ubicación (pulsa "Actualizar notas de Google")' : '');
+  $('#mapnote').innerHTML = (cat === 'paseo' ? '🔵 Ya fuimos · 🟣 Por ir' : '🟢 Visitado · 🟠 Por visitar') + (miss ? ' · ' + miss + ' sin ubicación (pulsa "Actualizar notas de Google")' : '');
 }
 $('#vmap').onclick = () => { view = view === 'map' ? 'list' : 'map'; needFit = true; render(); };
 $('#t-v').onclick = () => { tab = 'v'; render(); };

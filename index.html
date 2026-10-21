@@ -110,6 +110,21 @@ html,body{overflow-x:hidden}
 .seg.paseo button.on{background:#1f8a8a}
 .mh{font:600 .8rem system-ui;letter-spacing:.08em;text-transform:uppercase;color:var(--mut);margin:14px 2px 6px}
 .tag{display:inline-block;font-size:.68rem;padding:1px 7px;border-radius:99px;background:var(--ln);color:var(--tx);margin-right:4px}
+html{font-size:15px}
+main{padding:12px}
+.hero{margin:-12px calc(50% - 50vw) 10px;border-radius:0 0 20px 20px}
+.hero-in{padding:14px 14px 12px}
+.hero .eyebrow{display:none}
+.hero h1{margin:0;font-size:clamp(1.45rem,5.2vw,2rem);max-width:78%}
+.chips{margin-top:8px;gap:6px}
+.chip{padding:3px 10px;font-size:.78rem}.chip b{font-size:.95rem}
+.hero .plate{width:90px;height:90px;font-size:38px;box-shadow:0 0 0 8px rgba(255,255,255,.06)}
+@media(max-width:520px){.hero .plate{width:70px;height:70px;font-size:30px;right:-14px;top:50%}}
+.seg{padding:3px;margin-bottom:8px;border-radius:12px}.seg button{padding:6px;font-size:.92rem}
+.bar{margin-bottom:8px;gap:6px}
+input,select,textarea,button{padding:6px 9px}
+.tabs button{font-size:.9rem}
+.ibtn{padding:6px 10px}
 </style>
 </head>
 <body>
@@ -146,7 +161,9 @@ html,body{overflow-x:hidden}
     <option value="new">Agregados recién</option>
     <option value="az">A–Z</option>
   </select>
-  <button id="vmap">🗺️ Mapa</button>
+  <button id="vmap" class="ibtn" title="Mapa">🗺️</button>
+  <button id="ftog" class="ibtn" title="Filtros">🎚️</button>
+  <button id="rand" class="ibtn" title="Sorpréndenos">🎲</button>
   <button class="pri" id="add">+ Agregar</button>
 </div>
 <div class="bar" id="filters">
@@ -154,7 +171,6 @@ html,body{overflow-x:hidden}
   <select id="f-zone"><option value="">Zona: todas</option></select>
   <select id="f-min"><option value="0">Nota Google: todas</option><option value="4">4,0 o más</option><option value="4.3">4,3 o más</option><option value="4.5">4,5 o más</option><option value="4.7">4,7 o más</option></select>
   <button id="f-clear" hidden>Limpiar</button>
-  <button class="pri" id="rand">🎲 Sorpréndenos</button>
 </div>
 <div id="list"></div>
 <div id="mapwrap" hidden><div id="map"></div><div class="hint" id="mapnote"></div></div>
@@ -239,6 +255,7 @@ const gEnabled = !GOOGLE_KEY.startsWith('PEGA');
 let cat = 'comer'; try { cat = localStorage.getItem('cat') === 'paseo' ? 'paseo' : 'comer'; } catch (e) {}
 const RC = () => R.filter(i => (i.category || 'comer') === cat);
 const FK = () => cat === 'paseo' ? 'kind' : 'cuisine';
+let showF = false;
 let fCui = '', fZone = '', fMin = 0, lastRand = null;
 let sb, me = null, lastId = undefined, R = [], RT = [], P = [], tab = 'v', view = 'list', editId = null, chan = null, linkBias = null, map = null, mapMarkers = [], needFit = true;
 
@@ -377,6 +394,7 @@ function pickRandom() {
   if (!$('#rdlg').open) $('#rdlg').showModal();
 }
 $('#rand').onclick = pickRandom;
+$('#ftog').onclick = () => { showF = !(!$('#filters').hidden); render(); };
 $('#ragain').onclick = pickRandom;
 
 const visitPatch = i => i.category === 'paseo' && !i.visited_on ? {status: 'v', visited_on: new Date().toISOString().slice(0, 10)} : {status: 'v'};
@@ -410,7 +428,7 @@ function render() {
   $('#t-v').classList.toggle('on', tab === 'v'); $('#t-p').classList.toggle('on', tab === 'p');
   const q = $('#q').value.toLowerCase(), so = $('#sort').value;
   $('#tabs').hidden = view === 'map'; $('#list').hidden = view === 'map'; $('#mapwrap').hidden = view !== 'map';
-  $('#vmap').textContent = view === 'map' ? '📋 Lista' : '🗺️ Mapa';
+  $('#vmap').textContent = view === 'map' ? '📋' : '🗺️'; $('#filters').hidden = !showF && !(fCui || fZone || fMin);
   if (view === 'map') return renderMap(RL.filter(matches));
   const l = RL.filter(i => i.status === tab && matches(i));
   l.sort((a, b) => so === 'date' ? (b.visited_on || b.created_at.slice(0, 10)).localeCompare(a.visited_on || a.created_at.slice(0, 10)) : so === 'avg' ? avg(b.id) - avg(a.id) : so === 'g' ? (b.g || 0) - (a.g || 0) : so === 'az' ? a.name.localeCompare(b.name) : b.created_at.localeCompare(a.created_at));

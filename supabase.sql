@@ -76,3 +76,10 @@ alter table public.restaurants
   add column if not exists cost text,
   add column if not exists comment text;
 create index if not exists restaurants_category_idx on public.restaurants(category);
+
+-- Migración 6: tabla para mantener activo el proyecto (ya aplicada vía conector)
+create table if not exists public.keepalive (id int primary key check (id = 1), pinged_at timestamptz not null default now());
+alter table public.keepalive enable row level security;
+create policy "keepalive_insert" on public.keepalive for insert to anon, authenticated with check (id = 1);
+create policy "keepalive_update" on public.keepalive for update to anon, authenticated using (id = 1) with check (id = 1);
+create policy "keepalive_select" on public.keepalive for select to anon, authenticated using (true);
